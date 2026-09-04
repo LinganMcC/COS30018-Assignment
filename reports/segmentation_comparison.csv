@@ -1,0 +1,3 @@
+method,images_tested,correct_digit_count,accuracy,failures
+contours,20,20,1.0,none
+connected_components,20,20,1.0,none

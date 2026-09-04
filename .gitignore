@@ -17,9 +17,10 @@ saved_models/
 *.h5
 *.joblib
 
-# Generated report artefacts (keep the folder, ignore the output)
-reports/**/*.png
-reports/**/*.csv
+# Report artefacts ARE committed on purpose - they are the evidence of
+# technique comparison that the marking scheme asks for, and they are small.
+# Only the bulky per-image demo dumps are excluded.
+reports/segmentation_demo/
 
 # OS / editor
 .DS_Store

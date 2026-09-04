@@ -1,0 +1,6 @@
+config,description,test_accuracy,preprocessing_seconds,ms_per_image
+grayscale_only,Grayscale + resize only (no thresholding),0.902,0.03,0.007
+adaptive,Grayscale + denoise + adaptive thresholding,0.901,0.07,0.015
+otsu_denoised,Grayscale + median denoise + Otsu binarization,0.894,0.06,0.012
+otsu_denoised_centered,Grayscale + denoise + Otsu + centre of mass alignment,0.888,0.08,0.016
+otsu,Grayscale + Otsu binarization,0.886,0.04,0.008
