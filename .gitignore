@@ -1,0 +1,28 @@
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Data and models (too large for git)
+data/raw/
+data/generated/
+saved_models/
+*.keras
+*.h5
+*.joblib
+
+# Generated report artefacts (keep the folder, ignore the output)
+reports/**/*.png
+reports/**/*.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
