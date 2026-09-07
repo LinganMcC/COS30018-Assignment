@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+smoke_model.keras         
+~/.keras/datasets/
+.vscode/
