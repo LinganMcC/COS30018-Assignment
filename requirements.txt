@@ -1,24 +1,11 @@
-# COS30018 Option B - HNRS project dependencies
+
 # Install with: pip install -r requirements.txt
 
-# --- Core ML / deep learning ---
 tensorflow==2.16.1
-
-# --- Numerical + data ---
 numpy==1.26.4
-
-# --- Classical ML baselines (Liam) ---
 scikit-learn==1.4.2
-
-# --- Image processing (John: preprocessing + segmentation) ---
-opencv-python==4.9.0.80
-scikit-image==0.22.0
-Pillow==10.3.0
-
-# --- Plotting (evaluation + report figures) ---
-matplotlib==3.8.4
-seaborn==0.13.2
-
-# --- GUI (Russell) ---
-# tkinter ships with Python on Windows; if using PyQt instead, uncomment:
-# PyQt5==5.15.10
+opencv-python==4.9.0.80 #Image preprocessing for GUI
+scikit-image==0.22.0 #image cleaning
+Pillow==10.3.0 #open and convert image files for matplotlib
+matplotlib==3.8.4 #curve plots for comparison between models
+seaborn==0.13.2 #report-quality charts
