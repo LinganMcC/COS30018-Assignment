@@ -1,11 +1,4 @@
-"""
-Progress summary - one screenshot for the team and the tutor.
-COS30018 Option B - Handwritten Number Recognition System
-Owner: John (Person A)
-
-Checks every deliverable this project should have produced so far and prints
-whether it exists, so weekly progress can be demonstrated in a single command
-instead of running each script again.
+"""Print DONE/TODO for each deliverable.
 
 Run:
     python src/show_progress.py
@@ -46,15 +39,15 @@ def main() -> None:
     print("Person A (John) - Data & Vision: Task 1, Task 2, image acquisition")
     print("=" * 68)
 
-    # ---- Environment -----------------------------------------------------
+    # Environment
     header("Environment")
     try:
-        import cv2, numpy, sklearn, skimage        # noqa: F401
+        import cv2, numpy, sklearn, skimage
         print(f"  {status(True)} All required libraries import correctly")
-    except ImportError as exc:                      # noqa: BLE001
+    except ImportError as exc:
         print(f"  {status(False)} Missing library: {exc.name}")
 
-    # ---- Dataset ---------------------------------------------------------
+    # Dataset
     header("Dataset")
     raw = ROOT / "data" / "raw"
     n_raw = count_files(raw, "*.png")
@@ -80,7 +73,7 @@ def main() -> None:
     print(f"  {status(n_custom > 0)} Real handwritten test images: {n_custom} "
           f"{DIM}(needed before final technique selection){END}")
 
-    # ---- Task 1 ----------------------------------------------------------
+    # Task 1
     header("Task 1 - Image Preprocessing (5 marks)")
     comp = ROOT / "reports" / "preprocessing_comparison.csv"
     if comp.exists():
@@ -97,7 +90,7 @@ def main() -> None:
     visual = ROOT / "reports" / "preprocessing_visual.png"
     print(f"  {status(visual.exists())} Visual before/after figure for the report")
 
-    # ---- Task 2 ----------------------------------------------------------
+    # Task 2
     header("Task 2 - Image Segmentation (5 marks)")
     seg = ROOT / "reports" / "segmentation_comparison.csv"
     if seg.exists():
@@ -114,22 +107,20 @@ def main() -> None:
     n_demo = count_files(demo, "*.png")
     print(f"  {status(n_demo > 0)} Annotated demo images saved: {n_demo}")
 
-    # ---- Tests -----------------------------------------------------------
+    # Tests
     header("Testing")
     try:
-        # sys.executable, not "python" - guarantees we use the interpreter this
-        # script is running under, so the result is not silently wrong when the
-        # virtual environment is not active.
+        # sys.executable so pytest runs under the same interpreter as this script
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"],
             cwd=ROOT, capture_output=True, text=True, timeout=120,
         )
         last = [ln for ln in result.stdout.strip().splitlines() if ln.strip()][-1]
         print(f"  {status(result.returncode == 0)} {last.strip()}")
-    except Exception as exc:                        # noqa: BLE001
+    except Exception as exc:
         print(f"  {status(False)} Could not run tests: {exc}")
 
-    # ---- Version control -------------------------------------------------
+    # Version control
     header("Version control")
     try:
         log = subprocess.run(["git", "log", "--oneline"], cwd=ROOT,
@@ -139,9 +130,7 @@ def main() -> None:
         for line in commits[:8]:
             print(f"      {DIM}{line}{END}")
 
-        # Having a remote configured is not the same as having pushed. Ask git
-        # for the current branch's upstream: this only resolves once the branch
-        # has actually been pushed and is tracking a remote branch.
+        # the upstream only resolves once the branch has been pushed
         upstream = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
             cwd=ROOT, capture_output=True, text=True, timeout=20,
@@ -154,10 +143,10 @@ def main() -> None:
                                     capture_output=True, text=True, timeout=20)
             print(f"  {status(False)} Branch not pushed yet  "
                   f"{DIM}(git push -u origin {branch.stdout.strip()}){END}")
-    except Exception as exc:                        # noqa: BLE001
+    except Exception as exc:
         print(f"  {status(False)} Git not available: {exc}")
 
-    # ---- Documentation ---------------------------------------------------
+    # Documentation
     header("Documentation")
     worklog = ROOT / "reports" / "worklog_john.md"
     print(f"  {status(worklog.exists())} Individual worklog maintained")

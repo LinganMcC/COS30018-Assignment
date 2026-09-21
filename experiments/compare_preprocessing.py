@@ -1,20 +1,4 @@
-"""
-Task 1 evidence - quantitative comparison of preprocessing techniques.
-COS30018 Option B - Handwritten Number Recognition System
-Owner: John (Person A)
-
-The 5 marks for Task 1 are not for writing a resize function; they are for
-"research and experiment with different preprocessing techniques and select the
-appropriate technique for your project". This script produces that evidence.
-
-For each preprocessing configuration it:
-  1. trains the same simple classifier on identically-sized MNIST subsets,
-  2. records test accuracy and processing time,
-  3. saves a side-by-side visual of what each configuration does to one image.
-
-The classifier is deliberately simple and identical across runs - the point is
-to isolate the effect of preprocessing, not to find the best model (that is
-Thien's and Liam's job in Task 3).
+"""Task 1 - compare the preprocessing configurations with the same k-NN classifier on a MNIST subset.
 
 Run:
     python experiments/compare_preprocessing.py
@@ -36,15 +20,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from preprocessing import CONFIGS, preprocess          # noqa: E402
+from preprocessing import CONFIGS, preprocess
 
 REPORTS = ROOT / "reports"
-TRAIN_SIZE = 4000       # kept small so the experiment runs in about a minute
+TRAIN_SIZE = 4000       # small so it runs in about a minute
 TEST_SIZE = 1000
 
 
 def load_mnist_subset():
-    """Load a fixed subset of MNIST for the comparison."""
     cache = ROOT / "data" / "mnist.npz"
     if cache.exists():
         with np.load(cache, allow_pickle=True) as data:
@@ -57,12 +40,11 @@ def load_mnist_subset():
 
 
 def evaluate_config(name: str, x_train, y_train, x_test, y_test) -> dict:
-    """Preprocess with one configuration, train, and score."""
+    """Preprocess with one config, train k-NN and score it."""
     from sklearn.neighbors import KNeighborsClassifier
 
     start = time.time()
-    # MNIST arrives light-on-dark; invert so it looks like a scanned page and the
-    # preprocessing pipeline is exercised the same way it will be in production.
+    # invert MNIST so it looks like dark ink on paper, as a real scan would
     train_proc = np.array([preprocess(cv2.bitwise_not(img), config=name, flatten=True)
                            for img in x_train])
     test_proc = np.array([preprocess(cv2.bitwise_not(img), config=name, flatten=True)
@@ -83,7 +65,6 @@ def evaluate_config(name: str, x_train, y_train, x_test, y_test) -> dict:
 
 
 def save_visual_comparison(sample: np.ndarray) -> Path:
-    """Save one image processed by every configuration, side by side."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -144,7 +125,7 @@ def main() -> None:
     print(f"  {best['description']}")
     print(f"\nSaved: {csv_path.relative_to(ROOT)}")
     print(f"Saved: {visual.relative_to(ROOT)}")
-    print("\nBoth files go straight into the report's 'Data preprocessing' section.")
+    print("\nBoth files go into the 'Data preprocessing' section of the report.")
 
 
 if __name__ == "__main__":

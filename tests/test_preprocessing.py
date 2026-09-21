@@ -1,4 +1,4 @@
-"""Unit tests for Task 1 preprocessing. Run with: python -m pytest tests/ -v"""
+"""Unit tests for Task 1 preprocessing. Run: python -m pytest tests/ -v"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from preprocessing import (  # noqa: E402
+from preprocessing import (
     CONFIGS, SELECTED_CONFIG, binarize_otsu, center_by_mass,
     invert_if_dark_strokes, normalize, preprocess, resize_image, to_grayscale,
 )
@@ -19,7 +19,7 @@ from preprocessing import (  # noqa: E402
 
 @pytest.fixture
 def colour_digit():
-    """A colour image with a digit drawn on it, dark strokes on white."""
+    """Colour image of a digit, dark on white."""
     img = np.full((100, 100, 3), 255, dtype=np.uint8)
     cv2.putText(img, "3", (25, 75), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 0), 3)
     return img
@@ -64,7 +64,7 @@ def test_normalize_scales_to_unit_range():
 
 
 def test_center_by_mass_handles_empty_image():
-    """An all-black image has no centre of mass - must not divide by zero."""
+    """Empty image has no centre of mass, so it must not divide by zero."""
     empty = np.zeros((28, 28), dtype=np.uint8)
     assert center_by_mass(empty).shape == (28, 28)
 
@@ -87,19 +87,15 @@ def test_unknown_config_raises(colour_digit):
 
 
 def test_preprocess_preserves_the_digit(colour_digit):
-    """Output must not be blank - a pipeline that erases the digit is broken."""
+    """The digit must not be erased by the pipeline."""
     assert preprocess(colour_digit).sum() > 0
 
 
 def test_selected_config_is_a_real_config():
-    """The technique we selected must actually exist, not be a typo."""
+    """SELECTED_CONFIG must be a real key in CONFIGS."""
     assert SELECTED_CONFIG in CONFIGS
 
 
 def test_default_matches_the_selected_config(colour_digit):
-    """Calling preprocess() with no config must use the selected technique.
-
-    This is the guard against the codebase and the written selection drifting
-    apart - the marking scheme asks us to select a technique AND implement it.
-    """
+    """preprocess() with no config must use SELECTED_CONFIG."""
     assert (preprocess(colour_digit) == preprocess(colour_digit, config=SELECTED_CONFIG)).all()

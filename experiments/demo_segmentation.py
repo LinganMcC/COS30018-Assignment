@@ -1,16 +1,5 @@
-"""
-Task 2 evidence - segmentation demonstration and method comparison.
-COS30018 Option B - Handwritten Number Recognition System
-Owner: John (Person A)
-
-Runs both segmentation techniques over the generated number images and reports,
-for each method:
-  - how often it found exactly the right number of digits
-  - where it failed, with annotated images showing what it detected
-
-"Correct digit count" is the right metric here because segmentation's job is to
-find the digits; whether each one is then classified correctly is Task 3's
-responsibility, not Task 2's.
+"""Task 2 - compare both segmentation methods on the generated number images.
+Metric: how often the correct number of digits is found.
 
 Run:
     python experiments/demo_segmentation.py
@@ -31,7 +20,7 @@ import cv2
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from segmentation import METHODS, annotate, segment_digits    # noqa: E402
+from segmentation import METHODS, annotate, segment_digits
 
 GENERATED = ROOT / "data" / "generated"
 REPORTS = ROOT / "reports"
@@ -49,7 +38,7 @@ def load_ground_truth() -> list[dict]:
 
 
 def evaluate_method(method: str, samples: list[dict], save_images: bool = True) -> dict:
-    """Count how often `method` detects the correct number of digits."""
+    """Count how often `method` finds the correct number of digits."""
     correct = 0
     failures = []
 
@@ -109,8 +98,7 @@ def main() -> None:
     print("\n" + "=" * 62)
     print(f"Saved: {csv_path.relative_to(ROOT)}")
     print(f"Saved: annotated images in {DEMO_DIR.relative_to(ROOT)}/")
-    print("\nFiles prefixed MISMATCH_ are the failure cases to discuss in the")
-    print("report's critical analysis section.")
+    print("\nFiles prefixed MISMATCH_ are the failure cases to discuss in the report.")
 
 
 if __name__ == "__main__":

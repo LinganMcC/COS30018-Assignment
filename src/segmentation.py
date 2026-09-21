@@ -1,22 +1,4 @@
-"""
-Task 2 - Image Segmentation
-COS30018 Option B - Handwritten Number Recognition System
-Owner: John (Person A)
-
-Splits an image of a multi-digit number into one sub-image per digit, ordered
-left to right, so each can be classified independently and the results joined
-back into the full number.
-
-Two techniques are implemented so the report can compare them, as the spec
-requires:
-  1. contour detection  - finds outlines of connected ink regions
-  2. connected components - labels connected pixel regions directly
-
-Both return the same structure, so swapping between them changes one argument.
-
-Pipeline position:
-    preprocessing -> [THIS MODULE] -> recognition -> number reconstruction
-"""
+"""Task 2 - split an image of a number into single-digit images (contours or connected components)."""
 
 from __future__ import annotations
 
@@ -26,12 +8,7 @@ import numpy as np
 from preprocessing import to_grayscale, binarize_otsu, denoise
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _prepare_binary(image: np.ndarray, apply_denoise: bool = True) -> np.ndarray:
-    """Produce the white-strokes-on-black binary image both methods need."""
     grey = to_grayscale(image)
     if apply_denoise:
         grey = denoise(grey)
@@ -39,12 +16,7 @@ def _prepare_binary(image: np.ndarray, apply_denoise: bool = True) -> np.ndarray
 
 
 def _pad_to_square(crop: np.ndarray, margin: int = 4) -> np.ndarray:
-    """Pad a digit crop to a square, keeping the digit centred.
-
-    Without this, a '1' (tall and thin) would be stretched horizontally by the
-    resize step and could end up looking like a '7' or '4' to the classifier.
-    Padding to square first preserves the original aspect ratio.
-    """
+    """Pad a crop to a square so a thin '1' is not stretched when resized."""
     h, w = crop.shape
     side = max(h, w) + 2 * margin
     square = np.zeros((side, side), dtype=crop.dtype)
@@ -57,45 +29,29 @@ def _pad_to_square(crop: np.ndarray, margin: int = 4) -> np.ndarray:
 def _filter_boxes(boxes: list[tuple[int, int, int, int]], image_shape: tuple[int, int],
                   min_area_ratio: float, min_height_ratio: float
                   ) -> list[tuple[int, int, int, int]]:
-    """Discard boxes too small to be digits.
-
-    Thresholds are expressed as a fraction of the image rather than in absolute
-    pixels, so the same settings work on a 200px scan and a 2000px photo.
-    """
+    """Drop boxes that are too small to be digits (limits are fractions of the image size)."""
     img_h, img_w = image_shape[:2]
     img_area = img_h * img_w
     keep = []
     for (x, y, w, h) in boxes:
         if w * h < min_area_ratio * img_area:
-            continue          # specks of noise
+            continue          # noise
         if h < min_height_ratio * img_h:
-            continue          # dust, pen dots, paper marks
+            continue          # dust, pen dots
         keep.append((x, y, w, h))
     return keep
 
 
-# ---------------------------------------------------------------------------
-# Technique 1 - contour detection
-# ---------------------------------------------------------------------------
-
 def segment_by_contours(image: np.ndarray, min_area_ratio: float = 0.002,
                         min_height_ratio: float = 0.15, margin: int = 4,
                         ) -> tuple[list[np.ndarray], list[tuple[int, int, int, int]]]:
-    """Segment digits by tracing the outline of each ink region.
-
-    RETR_EXTERNAL keeps only outermost contours, so the hole inside a '0' or '8'
-    is not mistaken for a separate digit.
-
-    Returns:
-        (crops, boxes) - crops are square, padded, white-on-black digit images
-        ordered left to right; boxes are the matching (x, y, w, h) rectangles.
-    """
+    """Find digits from the outer contour of each ink region. Returns (crops, boxes) ordered left to right."""
     binary = _prepare_binary(image)
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     boxes = [cv2.boundingRect(c) for c in contours]
     boxes = _filter_boxes(boxes, binary.shape, min_area_ratio, min_height_ratio)
-    boxes.sort(key=lambda b: b[0])   # left to right - this is what preserves digit order
+    boxes.sort(key=lambda b: b[0])   # left to right keeps the digit order
 
     crops = []
     for (x, y, w, h) in boxes:
@@ -104,19 +60,10 @@ def segment_by_contours(image: np.ndarray, min_area_ratio: float = 0.002,
     return crops, boxes
 
 
-# ---------------------------------------------------------------------------
-# Technique 2 - connected components
-# ---------------------------------------------------------------------------
-
 def segment_by_connected_components(image: np.ndarray, min_area_ratio: float = 0.002,
                                     min_height_ratio: float = 0.15, margin: int = 4,
                                     ) -> tuple[list[np.ndarray], list[tuple[int, int, int, int]]]:
-    """Segment digits by labelling connected regions of white pixels.
-
-    Functionally similar to the contour method but computed differently: OpenCV
-    returns statistics per region directly, which makes filtering slightly
-    cheaper. Included so the report can compare two genuine alternatives.
-    """
+    """Find digits by labelling connected white regions. Returns (crops, boxes) ordered left to right."""
     binary = _prepare_binary(image)
     n_labels, _, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
 
@@ -135,10 +82,6 @@ def segment_by_connected_components(image: np.ndarray, min_area_ratio: float = 0
     return crops, boxes
 
 
-# ---------------------------------------------------------------------------
-# Public entry point
-# ---------------------------------------------------------------------------
-
 METHODS = {
     "contours": segment_by_contours,
     "connected_components": segment_by_connected_components,
@@ -147,15 +90,7 @@ METHODS = {
 
 def segment_digits(image: np.ndarray, method: str = "contours", **kwargs
                    ) -> tuple[list[np.ndarray], list[tuple[int, int, int, int]]]:
-    """Split a number image into ordered single-digit images.
-
-    Args:
-        image:  image containing one or more handwritten digits
-        method: "contours" or "connected_components"
-
-    Returns:
-        (crops, boxes) as described in the individual methods.
-    """
+    """Split a number image into ordered single-digit images. method: 'contours' or 'connected_components'."""
     if method not in METHODS:
         raise KeyError(f"Unknown method '{method}'. Available: {list(METHODS.keys())}")
     return METHODS[method](image, **kwargs)
@@ -163,11 +98,7 @@ def segment_digits(image: np.ndarray, method: str = "contours", **kwargs
 
 def annotate(image: np.ndarray, boxes: list[tuple[int, int, int, int]],
              labels: list[str] | None = None) -> np.ndarray:
-    """Draw the detected boxes onto a copy of the image.
-
-    Used for the report figures and for the GUI's segmentation preview, so a
-    human can see exactly what the system decided each digit was.
-    """
+    """Draw the boxes on a copy of the image."""
     canvas = image.copy()
     if len(canvas.shape) == 2:
         canvas = cv2.cvtColor(canvas, cv2.COLOR_GRAY2BGR)
@@ -180,11 +111,10 @@ def annotate(image: np.ndarray, boxes: list[tuple[int, int, int, int]],
 
 
 if __name__ == "__main__":
-    # Smoke test: draw three digits side by side and check we find three regions.
     demo = np.zeros((120, 300), dtype=np.uint8)
     for i, ch in enumerate("482"):
         cv2.putText(demo, ch, (20 + i * 90, 90), cv2.FONT_HERSHEY_SIMPLEX, 2.5, 255, 4)
-    demo = cv2.bitwise_not(demo)   # make it dark-on-light, like a real photo
+    demo = cv2.bitwise_not(demo)   # dark on light, like a real photo
 
     for name in METHODS:
         crops, boxes = segment_digits(demo, method=name)

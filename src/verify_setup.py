@@ -1,12 +1,4 @@
-"""
-Environment verification.
-COS30018 Option B - Handwritten Number Recognition System
-
-Run this first, on every machine, before doing anything else:
-    python src/verify_setup.py
-
-If every line says OK, the environment is ready.
-"""
+"""Check that the required packages are installed. Run: python src/verify_setup.py"""
 
 from __future__ import annotations
 

@@ -1,14 +1,6 @@
-"""
-Dataset preparation helper.
-COS30018 Option B - Handwritten Number Recognition System
-Owner: John (Person A)
+"""Export MNIST as single-digit PNGs in data/raw/<digit>/.
 
-Downloads MNIST and writes a sample of individual digit images to data/raw/,
-organised one folder per digit. That folder is the input for
-`generate_number.py`, which satisfies the spec requirement of "automatic
-creation of the image of a number from a folder of images of individual digits".
-
-Run once after setting up the environment:
+Run once after setup:
     python src/prepare_data.py
 """
 
@@ -26,18 +18,13 @@ SAMPLES_PER_DIGIT = 50
 
 
 def load_mnist():
-    """Load MNIST, preferring Keras but falling back to a direct download.
-
-    The fallback matters because the university network sometimes blocks the
-    Keras download URL, and because TensorFlow is a heavy import we do not want
-    to require just to prepare data.
-    """
+    """Load MNIST from Keras, falling back to a direct download (the uni network can block the Keras URL)."""
     try:
         from tensorflow.keras.datasets import mnist
         (x_train, y_train), _ = mnist.load_data()
         print("Loaded MNIST via tensorflow.keras")
         return x_train, y_train
-    except Exception as exc:                                   # noqa: BLE001
+    except Exception as exc:
         print(f"Keras unavailable ({type(exc).__name__}), trying direct download...")
 
     import urllib.request
@@ -53,7 +40,7 @@ def load_mnist():
 
 
 def export_digit_images(x, y, samples_per_digit: int = SAMPLES_PER_DIGIT) -> int:
-    """Write `samples_per_digit` PNGs for each digit 0-9 into data/raw/<digit>/."""
+    """Write `samples_per_digit` PNGs per digit into data/raw/<digit>/."""
     written = 0
     for digit in range(10):
         out_dir = RAW_DIR / str(digit)
