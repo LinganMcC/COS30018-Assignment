@@ -19,7 +19,6 @@ REQUIRED = [
     ("scikit-image", "skimage"),
     ("scikit-learn", "sklearn"),
     ("matplotlib", "matplotlib"),
-    ("pandas", "pandas"),
     ("Pillow", "PIL"),
 ]
 OPTIONAL = [

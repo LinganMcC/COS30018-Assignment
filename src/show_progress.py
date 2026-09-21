@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -116,8 +117,11 @@ def main() -> None:
     # ---- Tests -----------------------------------------------------------
     header("Testing")
     try:
+        # sys.executable, not "python" - guarantees we use the interpreter this
+        # script is running under, so the result is not silently wrong when the
+        # virtual environment is not active.
         result = subprocess.run(
-            ["python", "-m", "pytest", "tests/", "-q", "--no-header"],
+            [sys.executable, "-m", "pytest", "tests/", "-q", "--no-header"],
             cwd=ROOT, capture_output=True, text=True, timeout=120,
         )
         last = [ln for ln in result.stdout.strip().splitlines() if ln.strip()][-1]
@@ -135,11 +139,21 @@ def main() -> None:
         for line in commits[:8]:
             print(f"      {DIM}{line}{END}")
 
-        remote = subprocess.run(["git", "remote", "-v"], cwd=ROOT,
-                                capture_output=True, text=True, timeout=20)
-        has_remote = bool(remote.stdout.strip())
-        print(f"  {status(has_remote)} Pushed to GitHub remote"
-              f"{'' if has_remote else f'  {DIM}(create repo and push, then invite tutor){END}'}")
+        # Having a remote configured is not the same as having pushed. Ask git
+        # for the current branch's upstream: this only resolves once the branch
+        # has actually been pushed and is tracking a remote branch.
+        upstream = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        pushed = upstream.returncode == 0
+        if pushed:
+            print(f"  {status(True)} Branch pushed, tracking {upstream.stdout.strip()}")
+        else:
+            branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT,
+                                    capture_output=True, text=True, timeout=20)
+            print(f"  {status(False)} Branch not pushed yet  "
+                  f"{DIM}(git push -u origin {branch.stdout.strip()}){END}")
     except Exception as exc:                        # noqa: BLE001
         print(f"  {status(False)} Git not available: {exc}")
 
