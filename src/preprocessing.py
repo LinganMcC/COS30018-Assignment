@@ -157,7 +157,36 @@ CONFIGS = {
 }
 
 
-def preprocess(image: np.ndarray, config: str = "otsu_denoised_centered",
+# ---------------------------------------------------------------------------
+# Selected technique (Task 1)
+# ---------------------------------------------------------------------------
+#
+# The specification asks us to compare techniques and then select one. This is
+# that selection, kept as a single named constant so there is exactly one place
+# in the codebase that answers "which configuration does the system use?".
+#
+# Chosen: grayscale_only, on the evidence in reports/preprocessing_comparison.csv
+#
+#   grayscale_only          0.902   <- selected
+#   adaptive                0.901
+#   otsu_denoised           0.894
+#   otsu_denoised_centered  0.888
+#   otsu                    0.886
+#
+# Two caveats recorded deliberately, because they change what this number means:
+#
+#   1. With 1000 test images the standard error is about +/-1 percentage point,
+#      so grayscale_only and adaptive are tied within error. The honest claim is
+#      that both beat plain Otsu, not that grayscale beats adaptive.
+#   2. The comparison ran on MNIST, which is clean, evenly lit and already
+#      normalised - the conditions least favourable to thresholding and
+#      denoising. This selection is therefore provisional and must be re-run on
+#      photographed handwriting before the final report. If adaptive wins there,
+#      that is the configuration that should ship.
+SELECTED_CONFIG = "grayscale_only"
+
+
+def preprocess(image: np.ndarray, config: str = SELECTED_CONFIG,
                size: tuple[int, int] = TARGET_SIZE,
                flatten: bool = False) -> np.ndarray:
     """Run the full preprocessing pipeline for a named configuration.
@@ -203,7 +232,7 @@ def preprocess(image: np.ndarray, config: str = "otsu_denoised_centered",
     return result.flatten() if flatten else result
 
 
-def preprocess_batch(images: list[np.ndarray], config: str = "otsu_denoised_centered",
+def preprocess_batch(images: list[np.ndarray], config: str = SELECTED_CONFIG,
                      flatten: bool = False) -> np.ndarray:
     """Apply `preprocess` to a list of images and stack the results.
 

@@ -59,6 +59,14 @@ An important caveat limits how far this result can be taken. With 1,000 test ima
 
 More importantly, MNIST is clean, evenly-lit, pre-normalised laboratory data — precisely the conditions under which thresholding and denoising have least to offer. Real photographed handwriting has uneven illumination, shadows, varying pen pressure and paper texture, which is exactly what adaptive thresholding and median denoising exist to handle. I therefore do not treat this as a final technique selection. The comparison must be repeated on a set of genuinely handwritten, photographed images before the project commits to a configuration, and I expect the ranking may change.
 
+### Decision: selected preprocessing technique
+
+Recorded the selection required by Task 1 as a single named constant, `SELECTED_CONFIG` in `src/preprocessing.py`, and set it to `grayscale_only` — the configuration with the highest measured accuracy.
+
+This corrected an inconsistency I found while reviewing the module before pushing: `preprocess()` had been defaulting to `otsu_denoised_centered`, which my own comparison ranked fourth of five. The code was therefore not implementing the technique the evidence supported. Two unit tests now guard against that drifting again: one checks the selected configuration actually exists, the other checks that calling `preprocess()` with no arguments uses it.
+
+The selection is explicitly provisional. It rests on a MNIST-only comparison, and MNIST is the case least favourable to thresholding and denoising. I will re-run the comparison on photographed handwriting and change the selection if adaptive thresholding wins there.
+
 ### Blockers / risks
 
 - No blockers on my components.

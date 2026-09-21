@@ -12,8 +12,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from preprocessing import (  # noqa: E402
-    CONFIGS, binarize_otsu, center_by_mass, invert_if_dark_strokes,
-    normalize, preprocess, resize_image, to_grayscale,
+    CONFIGS, SELECTED_CONFIG, binarize_otsu, center_by_mass,
+    invert_if_dark_strokes, normalize, preprocess, resize_image, to_grayscale,
 )
 
 
@@ -89,3 +89,17 @@ def test_unknown_config_raises(colour_digit):
 def test_preprocess_preserves_the_digit(colour_digit):
     """Output must not be blank - a pipeline that erases the digit is broken."""
     assert preprocess(colour_digit).sum() > 0
+
+
+def test_selected_config_is_a_real_config():
+    """The technique we selected must actually exist, not be a typo."""
+    assert SELECTED_CONFIG in CONFIGS
+
+
+def test_default_matches_the_selected_config(colour_digit):
+    """Calling preprocess() with no config must use the selected technique.
+
+    This is the guard against the codebase and the written selection drifting
+    apart - the marking scheme asks us to select a technique AND implement it.
+    """
+    assert (preprocess(colour_digit) == preprocess(colour_digit, config=SELECTED_CONFIG)).all()
