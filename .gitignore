@@ -5,21 +5,20 @@ env/
 
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 *.egg-info/
 .pytest_cache/
 
-# Data and models (too large for git)
+# Datasets (regenerate with src/prepare_data.py and src/generate_number.py)
 data/raw/
 data/generated/
-saved_models/
-*.keras
-*.h5
-*.joblib
+~/.keras/datasets/
 
-# Report artefacts ARE committed on purpose - they are the evidence of
-# technique comparison that the marking scheme asks for, and they are small.
-# Only the bulky per-image demo dumps are excluded.
+# Scratch model files
+smoke_model.keras
+
+# Bulky per-image demo dumps (the summary CSVs ARE committed)
 reports/segmentation_demo/
 
 # OS / editor

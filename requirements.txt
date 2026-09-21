@@ -1,10 +1,12 @@
-numpy
-matplotlib
-opencv-python
-scikit-image
-scikit-learn
-pandas
-Pillow
-joblib
-pytest
-tensorflow
+
+# Install with: pip install -r requirements.txt
+
+tensorflow==2.16.1
+numpy==1.26.4
+scikit-learn==1.4.2
+opencv-python==4.9.0.80 #Image preprocessing for GUI
+scikit-image==0.22.0 #image cleaning
+Pillow==10.3.0 #open and convert image files for matplotlib
+matplotlib==3.8.4 #curve plots for comparison between models
+seaborn==0.13.2 #report-quality charts
+pytest==8.2.0 #unit tests for preprocessing and segmentation

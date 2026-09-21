@@ -1,97 +1,65 @@
-# HNRS — Handwritten Number Recognition System
+# COS30018-Assignment
 
-COS30018 Intelligent Systems — Option B  
-Team: John (A · Data & Vision) · Thien (B · Deep Models) · Liam (C · Baselines & Evaluation) · Russell (D · Systems, Integration & Extension)
+Option B — Handwritten Number Recognition System (HNRS)
+
+Team: John (Data & Vision) · Thien (Deep Models) · Liam (Baselines & Evaluation) · Russell (Systems, Integration & Extension)
 
 ---
 
-## What this system does
-
-Takes an image containing a handwritten multi-digit number and outputs the recognised number.
+## Pipeline
 
 ```
 input image ──► preprocessing ──► segmentation ──► digit recognition ──► number reconstruction ──► output
                 (Task 1, John)   (Task 2, John)   (Task 3, Thien/Liam)  (Task 4, Liam)
 ```
 
----
+## Repository layout
+
+| Path | Owner | Contents |
+|---|---|---|
+| `src/preprocessing.py` | John | Task 1 — grayscale, denoise, Otsu / adaptive threshold, centring, normalisation, exposed as five named configurations for comparison |
+| `src/segmentation.py` | John | Task 2 — contour and connected-component segmentation into ordered single-digit crops |
+| `src/prepare_data.py` | John | Exports MNIST digits as PNGs into `data/raw/` |
+| `src/generate_number.py` | John | Builds multi-digit number images + ground-truth labels (automatic image acquisition) |
+| `src/show_progress.py` | John | Prints a status summary of all deliverables |
+| `experiments/` | John | Scripts producing the Task 1 and Task 2 comparison evidence |
+| `models/cnn/` | Thien | CNN architectures (shallow, LeNet, VGG-small), shared MNIST loader, experiment logger |
+| `models/experiments/` | Thien | Training histories and `experiment_log.csv` |
+| `gui.py` | Russell | GUI — image input and display |
+| `tests/` | John | 36 unit tests for preprocessing and segmentation |
+| `reports/` | John | Comparison CSVs, figures, individual worklog |
 
 ## Setup
 
-### 1. Create and activate a virtual environment
-
-**Windows (PowerShell):**
-```powershell
-python -m venv venv
-venv\Scripts\activate
-```
-
-**macOS:**
 ```bash
 python3 -m venv venv
-source venv/bin/activate
-```
-
-You should see `(venv)` at the start of your prompt. Re-run the activate command every time you open a new terminal.
-
-### 2. Install dependencies
-
-```bash
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### 3. Verify the setup
-
-```bash
 python src/verify_setup.py
 ```
 
-Expect version numbers for every library and no red error text.
+## Running
 
----
+| What | Command |
+|---|---|
+| Verify environment | `python src/verify_setup.py` |
+| Export MNIST digit images | `python src/prepare_data.py` |
+| Generate multi-digit test images | `python src/generate_number.py` |
+| Task 1 comparison experiment | `python experiments/compare_preprocessing.py` |
+| Task 2 segmentation comparison | `python experiments/demo_segmentation.py` |
+| Unit tests | `python -m pytest tests/ -v` |
+| Progress summary | `python src/show_progress.py` |
 
-## Running John's modules (Tasks 1 & 2)
+## Two MNIST loaders — which to use
 
-All commands are run from the repository root with the venv active.
+Both exist on purpose:
 
-| What | Command | Output |
-|---|---|---|
-| Verify environment | `python src/verify_setup.py` | Library versions printed |
-| Download MNIST + build sample data | `python src/prepare_data.py` | `data/raw/` filled with single-digit PNGs |
-| Generate a multi-digit number image | `python src/generate_number.py` | `data/generated/` images + `labels.csv` |
-| Task 1 comparison experiment | `python experiments/compare_preprocessing.py` | `reports/preprocessing_comparison.csv` + side-by-side images |
-| Task 2 segmentation demo | `python experiments/demo_segmentation.py` | `reports/segmentation_demo/` annotated images |
-| Run the tests | `python -m pytest tests/ -v` | All tests pass |
+- `models/cnn/mnist_loader.py` (Thien) returns normalised arrays with a train/val/test split — use this for **training models**.
+- `src/prepare_data.py` (John) writes individual digit PNGs to disk — this exists because the specification requires the system to build a number image from *a folder of digit images*, so the files have to physically exist.
 
----
+## Conventions
 
-## Folder structure
-
-```
-hnrs/
-├── data/
-│   ├── raw/            single-digit images (generated from MNIST)
-│   ├── generated/      auto-created multi-digit number images + ground truth
-│   └── custom_samples/ real handwritten photos (John collects these)
-├── src/
-│   ├── preprocessing.py    Task 1 — John
-│   ├── segmentation.py     Task 2 — John
-│   ├── generate_number.py  image acquisition — John
-│   ├── prepare_data.py     dataset helper
-│   └── verify_setup.py     environment check
-├── experiments/            comparison scripts that produce report evidence
-├── reports/                generated figures, CSVs, worklogs
-├── tests/                  unit tests
-├── saved_models/           trained models (Thien/Liam)
-└── requirements.txt
-```
-
----
-
-## Team conventions
-
-- **Never commit to `main` directly.** Branch → commit → pull request → review → merge.
-- Branch naming: `feature/preprocessing`, `feature/cnn-model`, `feature/gui`, etc.
-- Every experiment run gets a row in `reports/experiment_log.csv`.
-- Write your report section in the same sprint you build the thing.
-- `venv/`, `data/`, and `saved_models/` are gitignored — do not commit large binaries.
+- Branch → commit → pull request → review → merge. No direct commits to `main`.
+- Branch naming: `feature/<name>-<what>`.
+- Every training run gets a row in `models/experiments/experiment_log.csv`.
+- Datasets and virtual environments are gitignored; the small comparison CSVs and figures in `reports/` are committed on purpose, because they are the evidence of technique comparison the marking scheme asks for.

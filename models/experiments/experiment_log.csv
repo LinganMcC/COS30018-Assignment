@@ -1,0 +1,3 @@
+timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accuracy,test_accuracy,training_time_s,notes
+2026-09-11T16:42:30,cnn_shallow_run1,Shallow single-conv,0.001,128,16,0.0,0.9810,0.9832,16.05,Weak baseline; 1 conv layer only; stopped at 16/20.
+2026-09-11T16:49:16,cnn_shallow_run1,Shallow single-conv,0.001,128,9,0.0,0.9810,0.9788,9.31,Weak baseline; 1 conv layer only; stopped at 9/20.
