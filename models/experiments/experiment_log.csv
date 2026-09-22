@@ -1,3 +1,5 @@
 timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accuracy,test_accuracy,training_time_s,notes
 2026-09-11T16:42:30,cnn_shallow_run1,Shallow single-conv,0.001,128,16,0.0,0.9810,0.9832,16.05,Weak baseline; 1 conv layer only; stopped at 16/20.
 2026-09-11T16:49:16,cnn_shallow_run1,Shallow single-conv,0.001,128,9,0.0,0.9810,0.9788,9.31,Weak baseline; 1 conv layer only; stopped at 9/20.
+2026-09-15T14:54:30,cnn_lenet_run1,LeNet-5 (modernised),0.001,128,19,0.0,0.9907,0.9900,28.76,Baseline; EarlyStopping stopped after 19/20 epochs.
+2026-09-15T15:00:46,cnn_vgg_small_run1,Small VGG-style (BatchNorm + Dropout),0.001,128,12,0.5,0.9943,0.9948,289.34,Strong candidate; BN + dropout + LR-plateau; stopped at 12/30.
