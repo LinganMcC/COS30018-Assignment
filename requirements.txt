@@ -10,3 +10,4 @@ Pillow==10.3.0 #open and convert image files for matplotlib
 matplotlib==3.8.4 #curve plots for comparison between models
 seaborn==0.13.2 #report-quality charts
 tkinterdnd2 # Drag and drop support for GUI
+pytest == 8.0

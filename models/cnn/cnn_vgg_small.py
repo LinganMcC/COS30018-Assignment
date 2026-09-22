@@ -7,29 +7,44 @@ from mnist_loader import load_mnist
 from experiment_logger import log_run
 
 
-RUN_ID = "cnn_shallow_run1"
-ARCHITECTURE = "Shallow single-conv"
+RUN_ID = "cnn_vgg_small_run1"
+ARCHITECTURE = "Small VGG-style (BatchNorm + Dropout)"
 LEARNING_RATE = 1e-3
 BATCH_SIZE = 128
-MAX_EPOCHS = 30   # Shared budget across all three CNNs for a fair comparison.
-DROPOUT = 0.0
-PATIENCE = 5      # EarlyStopping patience; shared across all three CNNs.
+MAX_EPOCHS = 30
+DROPOUT = 0.5   # Head dropout rate; conv blocks use 0.25.
+PATIENCE = 5    # Deeper models need a bit more patience for val_accuracy plateaus.
 
-MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_shallow.keras"
-HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_shallow_history.png"
+# Use __file__ so paths work regardless of which directory you run from.
+MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_vgg_small.keras"
+HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_vgg_small_history.png"
 
 
-def build_shallow() -> tf.keras.Model:
-    model = models.Sequential(name="Shallow_single_conv")
-    model.add(layers.Input(shape=(28, 28, 1)))
-    model.add(layers.Conv2D(8, kernel_size=3, activation="relu", padding="same"))
-    model.add(layers.MaxPooling2D(pool_size=2))
+def conv_block(x, filters: int) -> tf.Tensor:
+    x = layers.Conv2D(filters, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.Conv2D(filters, 3, padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=2)(x)
+    x = layers.Dropout(0.25)(x)
+    return x
 
-    # Tiny classifier head.
-    model.add(layers.Flatten())
-    model.add(layers.Dense(32, activation="relu"))
-    model.add(layers.Dense(10, activation="softmax"))
 
+def build_vgg_small() -> tf.keras.Model:
+    inputs = layers.Input(shape=(28, 28, 1))
+    x = conv_block(inputs, 32)
+    x = conv_block(x, 64)
+
+    x = layers.Flatten()(x)
+    x = layers.Dense(128, use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.Dropout(DROPOUT)(x)
+    outputs = layers.Dense(10, activation="softmax")(x)
+
+    model = models.Model(inputs=inputs, outputs=outputs, name="VGG_small")
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
         loss="sparse_categorical_crossentropy",
@@ -63,7 +78,7 @@ def main() -> None:
     (x_train, y_train), (x_val, y_val), (x_test, y_test) = load_mnist()
     print(f"Train : {x_train.shape}  Val: {x_val.shape}  Test: {x_test.shape}")
 
-    model = build_shallow()
+    model = build_vgg_small()
     model.summary()
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +87,8 @@ def main() -> None:
                                 restore_best_weights=True, verbose=1),
         callbacks.ModelCheckpoint(filepath=str(MODEL_PATH), monitor="val_accuracy",
                                   save_best_only=True, verbose=1),
-        # Shared with the other CNNs: halve the LR when val_accuracy plateaus.
+        # Reduce learning rate if val_accuracy plateaus - helps the model
+        # squeeze the last fraction of a percent out.
         callbacks.ReduceLROnPlateau(monitor="val_accuracy", factor=0.5,
                                     patience=2, min_lr=1e-5, verbose=1),
     ]
@@ -111,7 +127,7 @@ def main() -> None:
         val_accuracy=val_acc,
         test_accuracy=test_acc,
         training_time_s=training_time_s,
-        notes=f"Weak baseline; 1 conv layer only; stopped at {epochs_actually_run}/{MAX_EPOCHS}.",
+        notes=f"Strong candidate; BN + dropout + LR-plateau; stopped at {epochs_actually_run}/{MAX_EPOCHS}.",
     )
 
 
