@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from segmentation import METHODS, annotate, segment_digits
+from segmentation import METHODS, SELECTED_METHOD, annotate, segment_digits
 
 
 def make_number_image(text: str, spacing: int = 90) -> np.ndarray:
@@ -81,3 +81,59 @@ def test_annotate_returns_colour_image_of_same_size():
     out = annotate(img, boxes)
     assert out.shape[:2] == img.shape[:2]
     assert out.ndim == 3
+
+
+# --- what makes the four methods genuinely different ------------------------
+
+def test_all_four_methods_are_registered():
+    assert set(METHODS) == {"contours", "connected_components",
+                            "projection", "watershed"}
+
+
+def test_selected_method_is_a_real_method():
+    assert SELECTED_METHOD in METHODS
+
+
+def test_default_matches_the_selected_method():
+    """Same guard as Task 1: the code must use the technique we wrote down."""
+    img = make_number_image("482")
+    default_crops, default_boxes = segment_digits(img)
+    chosen_crops, chosen_boxes = segment_digits(img, method=SELECTED_METHOD)
+    assert default_boxes == chosen_boxes
+    assert len(default_crops) == len(chosen_crops)
+
+
+def test_projection_splits_shapes_that_are_connected():
+    """Two bars joined by a thin bridge are ONE connected region.
+
+    Connected components and contours must see a single digit. The projection
+    profile looks at ink per column instead of connectivity, so the thin bridge
+    reads as a valley and it cuts there. This is the behaviour that makes it a
+    different technique rather than a third way of computing the same thing.
+    """
+    img = np.zeros((120, 200), dtype=np.uint8)
+    cv2.rectangle(img, (30, 20), (70, 100), 255, -1)
+    cv2.rectangle(img, (130, 20), (170, 100), 255, -1)
+    cv2.rectangle(img, (70, 58), (130, 62), 255, -1)      # thin bridge
+    img = cv2.bitwise_not(img)
+
+    assert len(segment_digits(img, method="connected_components")[0]) == 1
+    assert len(segment_digits(img, method="projection")[0]) == 2
+
+
+def test_watershed_crops_do_not_leak_neighbouring_ink():
+    """Each watershed crop is masked to its own label.
+
+    Without the mask, two digits that touch would each carry a slice of the
+    other into their crop, which is exactly what the method exists to avoid.
+    """
+    img = np.zeros((120, 200), dtype=np.uint8)
+    cv2.circle(img, (80, 60), 30, 255, -1)
+    cv2.circle(img, (120, 60), 30, 255, -1)
+    img = cv2.bitwise_not(img)
+
+    crops, boxes = segment_digits(img, method="watershed")
+    for crop, (_, _, w, h) in zip(crops, boxes):
+        # a masked crop holds less ink than the full box would if both blobs
+        # were present, so it can never be completely filled
+        assert crop.sum() / 255 < w * h

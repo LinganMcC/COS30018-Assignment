@@ -1,3 +1,10 @@
-method,images_tested,correct_digit_count,accuracy,failures
-contours,20,20,1.0,none
-connected_components,20,20,1.0,none
+method,images_tested,correct_digit_count,accuracy,acc_tight,acc_touching,acc_wide,failures
+contours,30,21,0.7,0.8,0.4,0.9,"number_002.png (expected 3, found 1); number_005.png (expected 4, found 3); number_008.png (expected 3, found 2); number_010.png (expected 5, found 4); number_020.png (expected 2, found 1)"
+connected_components,30,21,0.7,0.8,0.4,0.9,"number_002.png (expected 3, found 1); number_005.png (expected 4, found 3); number_008.png (expected 3, found 2); number_010.png (expected 5, found 4); number_020.png (expected 2, found 1)"
+projection,30,25,0.8333,1.0,0.6,0.9,"number_002.png (expected 3, found 2); number_008.png (expected 3, found 2); number_017.png (expected 3, found 2); number_023.png (expected 3, found 2); number_024.png (expected 5, found 6)"
+watershed,30,15,0.5,0.6,0.4,0.5,"number_000.png (expected 2, found 1); number_002.png (expected 3, found 2); number_003.png (expected 5, found 2); number_005.png (expected 4, found 3); number_006.png (expected 4, found 3)"
+sliding_mlp,30,17,0.5667,0.7,0.4,0.6,"number_000.png (expected 2, found 4); number_002.png (expected 3, found 2); number_007.png (expected 3, found 4); number_008.png (expected 3, found 4); number_009.png (expected 5, found 6)"
+sliding_svm,30,11,0.3667,0.6,0.1,0.4,"number_002.png (expected 3, found 2); number_003.png (expected 5, found 4); number_004.png (expected 4, found 3); number_005.png (expected 4, found 3); number_008.png (expected 3, found 4)"
+sliding_rf,30,8,0.2667,0.2,0.1,0.5,"number_002.png (expected 3, found 1); number_003.png (expected 5, found 4); number_004.png (expected 4, found 2); number_005.png (expected 4, found 2); number_007.png (expected 3, found 1)"
+cutpoint_mlp,30,18,0.6,0.8,0.6,0.4,"number_002.png (expected 3, found 4); number_003.png (expected 5, found 1); number_005.png (expected 4, found 5); number_006.png (expected 4, found 1); number_009.png (expected 5, found 1)"
+confidence_split,30,24,0.8,0.9,0.6,0.9,"number_002.png (expected 3, found 2); number_005.png (expected 4, found 3); number_020.png (expected 2, found 1); number_022.png (expected 5, found 4); number_026.png (expected 3, found 2)"
