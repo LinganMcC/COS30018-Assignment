@@ -11,9 +11,9 @@ RUN_ID = "cnn_shallow_run1"
 ARCHITECTURE = "Shallow single-conv"
 LEARNING_RATE = 1e-3
 BATCH_SIZE = 128
-MAX_EPOCHS = 20
+MAX_EPOCHS = 30   # Shared budget across all three CNNs for a fair comparison.
 DROPOUT = 0.0
-PATIENCE = 3
+PATIENCE = 5      # EarlyStopping patience; shared across all three CNNs.
 
 MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_shallow.keras"
 HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_shallow_history.png"
@@ -72,6 +72,9 @@ def main() -> None:
                                 restore_best_weights=True, verbose=1),
         callbacks.ModelCheckpoint(filepath=str(MODEL_PATH), monitor="val_accuracy",
                                   save_best_only=True, verbose=1),
+        # Shared with the other CNNs: halve the LR when val_accuracy plateaus.
+        callbacks.ReduceLROnPlateau(monitor="val_accuracy", factor=0.5,
+                                    patience=2, min_lr=1e-5, verbose=1),
     ]
 
     start = time.time()

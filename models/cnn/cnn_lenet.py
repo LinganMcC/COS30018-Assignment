@@ -10,9 +10,9 @@ RUN_ID = "cnn_lenet_run1"
 ARCHITECTURE = "LeNet-5 (modernised)"
 LEARNING_RATE = 1e-3
 BATCH_SIZE = 128
-MAX_EPOCHS = 20
+MAX_EPOCHS = 30   # Shared budget across all three CNNs for a fair comparison.
 DROPOUT = 0.0     # LeNet-5 baseline uses no dropout; variant 3 will add it.
-PATIENCE = 3      # EarlyStopping patience on validation accuracy.
+PATIENCE = 5      # EarlyStopping patience; shared across all three CNNs.
 
 MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_lenet.keras"
 HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_lenet_history.png"
@@ -100,6 +100,14 @@ def main() -> None:
             filepath=str(MODEL_PATH),
             monitor="val_accuracy",
             save_best_only=True,
+            verbose=1,
+        ),
+        # Shared with the other CNNs: halve the LR when val_accuracy plateaus.
+        callbacks.ReduceLROnPlateau(
+            monitor="val_accuracy",
+            factor=0.5,
+            patience=2,
+            min_lr=1e-5,
             verbose=1,
         ),
     ]
