@@ -69,9 +69,10 @@ def main() -> None:
         print(f"  {status(False)} Ground-truth labels file missing")
 
     custom = ROOT / "data" / "custom_samples"
-    n_custom = count_files(custom, "*.png") + count_files(custom, "*.jpg")
-    print(f"  {status(n_custom > 0)} Real handwritten test images: {n_custom} "
-          f"{DIM}(needed before final technique selection){END}")
+    n_digits = count_files(custom / "digits", "*.jpg") + count_files(custom / "digits", "*.png")
+    n_numbers = count_files(custom / "numbers", "*.jpg") + count_files(custom / "numbers", "*.png")
+    print(f"  {status(n_digits + n_numbers > 0)} Real handwritten test images: "
+          f"{n_digits} single digits, {n_numbers} numbers")
 
     # Task 1
     header("Task 1 - Image Preprocessing (5 marks)")
@@ -79,13 +80,31 @@ def main() -> None:
     if comp.exists():
         with open(comp, encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh))
-        print(f"  {status(True)} {len(rows)} configurations compared quantitatively")
+        # The CSV format has changed as the experiment grew (k-NN, then one CNN
+        # run, then repeated runs), so read whichever accuracy column is there.
+        key = next(k for k in ("cnn_mean", "cnn_accuracy", "test_accuracy") if k in rows[0])
+        runs = rows[0].get("runs", "1")
+        print(f"  {status(True)} {len(rows)} configurations compared quantitatively "
+              f"{DIM}({runs} run(s) each){END}")
         for r in rows:
-            print(f"      {r['config']:26s} accuracy {r['test_accuracy']}")
-        best = max(rows, key=lambda r: float(r["test_accuracy"]))
-        print(f"  {DIM}Best on MNIST: {best['config']} ({best['test_accuracy']}){END}")
+            spread = f" +/- {r['cnn_std']}" if "cnn_std" in r else ""
+            print(f"      {r['config']:26s} accuracy {r[key]}{spread}")
+        best = max(rows, key=lambda r: float(r[key]))
+        print(f"  {DIM}Highest on MNIST: {best['config']} ({best[key]}){END}")
     else:
         print(f"  {status(False)} Comparison not run yet")
+
+    real = ROOT / "reports" / "custom_preprocessing.csv"
+    if real.exists():
+        with open(real, encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        print(f"  {status(True)} Compared on real handwriting ({rows[0]['images']} photos)")
+        for r in rows:
+            mark = "  <- selected" if r.get("selected") else ""
+            print(f"      {r['config']:26s} {r['correct']}/{r['images']} "
+                  f"({float(r['accuracy']):.0%}){mark}")
+    else:
+        print(f"  {status(False)} Not yet compared on real handwriting")
 
     visual = ROOT / "reports" / "preprocessing_visual.png"
     print(f"  {status(visual.exists())} Visual before/after figure for the report")

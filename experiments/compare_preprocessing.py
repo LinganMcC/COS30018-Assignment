@@ -89,13 +89,13 @@ def apply_config(images, config: str, flatten: bool = False):
     return out if flatten else out.reshape(-1, 28, 28, 1)
 
 
-def train_and_score(spec, x_train, y_train, x_test, y_test):
+def train_and_score(spec, x_train, y_train, x_test, y_test, seed: int = SEED):
     """Train the team's CNN from scratch and return (accuracy, epochs, seconds)."""
     import tensorflow as tf
     from tensorflow.keras import callbacks
 
     builder, max_epochs, patience = spec
-    tf.keras.utils.set_random_seed(SEED)
+    tf.keras.utils.set_random_seed(seed)
     model = builder()
 
     cbs = [
@@ -127,8 +127,17 @@ def score_knn(x_train, y_train, x_test, y_test) -> float:
     return float(clf.score(x_test, y_test))
 
 
-def evaluate_config(name: str, spec, data, with_knn: bool) -> dict:
-    """Preprocess with one configuration, train the CNN, and score it."""
+def evaluate_config(name: str, spec, data, with_knn: bool, repeats: int) -> dict:
+    """Preprocess with one configuration, then train and score the CNN `repeats` times.
+
+    One run per configuration is not enough. Two single runs of this exact
+    script ranked the configurations differently: grayscale_only went from
+    0.966 to 0.960 and otsu from 0.965 to 0.973, because CPU training is not
+    bit-for-bit repeatable and early stopping then fires at a different epoch.
+    That run-to-run swing is as large as the gaps being measured, so each
+    configuration is trained several times with different seeds and reported
+    as a mean and standard deviation.
+    """
     x_tr_raw, y_tr, x_te_raw, y_te = data
 
     start = time.time()
@@ -136,14 +145,20 @@ def evaluate_config(name: str, spec, data, with_knn: bool) -> dict:
     x_test = apply_config(x_te_raw, name)
     prep_time = time.time() - start
 
-    accuracy, epochs, train_time = train_and_score(spec, x_train, y_tr, x_test, y_te)
+    runs = [train_and_score(spec, x_train, y_tr, x_test, y_te, seed=SEED + i)
+            for i in range(repeats)]
+    accs = np.array([acc for acc, _, _ in runs])
 
     row = {
         "config": name,
         "description": CONFIGS[name]["description"],
-        "cnn_accuracy": round(accuracy, 4),
-        "epochs": epochs,
-        "train_seconds": round(train_time, 1),
+        "cnn_mean": round(float(accs.mean()), 4),
+        "cnn_std": round(float(accs.std(ddof=1)) if repeats > 1 else 0.0, 4),
+        "cnn_min": round(float(accs.min()), 4),
+        "cnn_max": round(float(accs.max()), 4),
+        "runs": repeats,
+        "epochs_mean": round(float(np.mean([e for _, e, _ in runs])), 1),
+        "train_seconds_mean": round(float(np.mean([t for _, _, t in runs])), 1),
         "ms_per_image": round(1000 * prep_time / (len(x_tr_raw) + len(x_te_raw)), 3),
     }
     if with_knn:
@@ -187,6 +202,8 @@ def main() -> None:
                         help="which of the team's CNNs to score with")
     parser.add_argument("--with-knn", action="store_true",
                         help="also score with the original k-NN, for comparison")
+    parser.add_argument("--repeats", type=int, default=5,
+                        help="training runs per configuration, each with its own seed")
     args = parser.parse_args()
 
     print("Task 1 - preprocessing comparison experiment")
@@ -197,18 +214,19 @@ def main() -> None:
           f"({spec[1]} epochs max, patience {spec[2]} - its own settings).")
     print(f"Training on {len(data[0])} images, testing on {len(data[2])}.")
     print("Identical training settings every time, so any difference in accuracy")
-    print("is caused by preprocessing alone.\n")
+    print("is caused by preprocessing alone.")
+    print(f"Each configuration is trained {args.repeats} times with different seeds.\n")
 
     results = []
     for name in CONFIGS:
         print(f"  {name:26s} ...", end=" ", flush=True)
-        row = evaluate_config(name, spec, data, args.with_knn)
+        row = evaluate_config(name, spec, data, args.with_knn, args.repeats)
         results.append(row)
         extra = f"   k-NN {row['knn_accuracy']:.4f}" if args.with_knn else ""
-        print(f"CNN {row['cnn_accuracy']:.4f}  "
-              f"({row['epochs']} epochs, {row['train_seconds']}s){extra}")
+        print(f"CNN {row['cnn_mean']:.4f} +/- {row['cnn_std']:.4f}  "
+              f"(range {row['cnn_min']:.4f}-{row['cnn_max']:.4f}){extra}")
 
-    results.sort(key=lambda r: r["cnn_accuracy"], reverse=True)
+    results.sort(key=lambda r: r["cnn_mean"], reverse=True)
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     csv_path = REPORTS / "preprocessing_comparison.csv"
@@ -220,9 +238,14 @@ def main() -> None:
     visual = save_visual_comparison(cv2.bitwise_not(data[2][0]))
 
     best = results[0]
+    # Tied = the gap to the best mean is smaller than the two spreads combined.
+    tied = [r["config"] for r in results[1:]
+            if best["cnn_mean"] - r["cnn_mean"] <= best["cnn_std"] + r["cnn_std"]]
     print("\n" + "=" * 66)
-    print(f"Best configuration: {best['config']}  ({best['cnn_accuracy']:.4f})")
+    print(f"Highest mean: {best['config']}  ({best['cnn_mean']:.4f} +/- {best['cnn_std']:.4f})")
     print(f"  {best['description']}")
+    if tied:
+        print(f"Within run-to-run noise of it: {', '.join(tied)}")
     print(f"\nSaved: {csv_path.relative_to(ROOT)}")
     print(f"Saved: {visual.relative_to(ROOT)}")
     print("\nBoth files go into the 'Data preprocessing' section of the report.")

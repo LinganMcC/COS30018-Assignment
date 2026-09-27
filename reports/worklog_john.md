@@ -123,7 +123,7 @@ Then `src/segmentation_ml.py` with four methods:
 - **cutpoint_mlp** - over-segment at every local minimum of the ink profile, then a dynamic program picks the sequence of cuts the model is most confident about. Image processing proposes, the model disposes. This is the classical approach for touching handwriting used in cheque readers.
 - **confidence_split** - start from connected blobs, and for any blob far wider than it is tall, try every cut column and keep the one that leaves the model most confident about both halves.
 
-Results on the same 30 images (`reports/segmentation_comparison.csv`):
+Results on the same 30 images, final run on my own machine (`reports/segmentation_comparison.csv`), with all ten methods including `sliding_cnn`:
 
 | Method | Family | Overall | wide | tight | touching |
 |---|---|---|---|---|---|
@@ -131,47 +131,110 @@ Results on the same 30 images (`reports/segmentation_comparison.csv`):
 | confidence_split | model | 80% | 90% | 90% | 60% |
 | contours | classical | 70% | 90% | 80% | 40% |
 | connected components | classical | 70% | 90% | 80% | 40% |
-| cutpoint_mlp | model | 70% | 40% | 80% | **90%** |
-| sliding_mlp | model | 50% | 80% | 50% | 20% |
+| cutpoint_mlp | model | 60% | 40% | 80% | 60% |
+| sliding_mlp | model | 57% | 60% | 70% | 40% |
 | watershed | classical | 50% | 50% | 60% | 40% |
+| sliding_cnn | model | 47% | 30% | 60% | 50% |
+| sliding_svm | model | 37% | 40% | 60% | 10% |
+| sliding_rf | model | 23% | 40% | 20% | 10% |
 
-The headline is in the last column. Touching digits had been the ceiling on everything I had built: the best classical method reached 60%, and I had written that up as an open limitation. `cutpoint_mlp` reaches 90% on exactly that case. `reports/segmentation_touching.png` shows it on one image - six methods return one or two boxes for a three-digit number, the cut-point classifier returns three.
+**Correction to an earlier draft of this entry.** A first run had `cutpoint_mlp` at 90% on touching digits and I wrote that up as the headline. That number was measured before the `to_patch()` fix described below, when the classifiers were scoring patches in a different format from the one they were trained on. After the fix it is 60%, the same as projection. The honest result is that none of the ten methods gets past 60% on touching digits: the model-based family does not break the ceiling I had documented, it only matches it. The figure `reports/segmentation_touching.png` from that first run was also out of date; both Task 2 figures are now produced by `experiments/make_segmentation_figures.py` so they always match the current code.
 
-It is also the worst method on well-separated digits, at 40%, because it over-segments when there is no ambiguity to resolve. So the honest reading is not that one method wins. It is that the two families fail in opposite places, and the best overall result would come from running the cheap classical method first and only calling the model where the blob geometry says a decision is needed - which is roughly what `confidence_split` does, and it is second overall while being far cheaper than the sliding window.
+What survives is a different reading of the table. The two families fail in different places: `cutpoint_mlp` is strong on tight and touching digits but the worst on well-separated ones (40%), because it over-segments when there is nothing to resolve, while the classical methods are the reverse. `confidence_split` runs the cheap classical step first and only asks the model where the blob geometry says a decision is needed, and it comes second overall at a fraction of the sliding window's cost.
 
 ### Four distinct models behind the sliding window
 
-The tutor's requirement was four *different models*, not four uses of one, so I extended `digit_classifier.py` to four backends chosen to be four different families rather than four settings of the same idea: a fully-connected network (MLP), a convolutional network (Thien's LeNet), an RBF kernel machine (SVM) and an ensemble of decision trees (random forest). The CNN is deliberately the same architecture Thien uses for Task 3; sharing it is the point, because if the strongest recogniser also segments best that is worth knowing, and if it does not, the bottleneck is the search rather than the model.
+The tutor's requirement was four *different models*, not four uses of one, so `digit_classifier.py` has four backends from four different families: a fully-connected network (MLP), a convolutional network (Thien's LeNet), an RBF kernel machine (SVM) and an ensemble of decision trees (random forest). The CNN is deliberately the same architecture Thien uses for Task 3. All four are driven by the same sliding-window search, so anything that differs between them is the model and nothing else.
 
-All four are driven by the same sliding-window search, so anything that differs between them is the model and nothing else.
+Getting that comparison to be fair exposed two bugs worth recording.
 
-Getting that comparison to be fair exposed a bug worth recording. The window filter used an absolute confidence threshold of 0.55, which suited the MLP and silently returned **nothing at all** for the SVM and the forest - both scored 0%, and I nearly wrote that up as "these models cannot segment". They can. Their probabilities are simply on a different scale: a softmax peaks near 1.0, while Platt scaling and vote-averaging across 300 trees both top out near 0.5, so no window ever cleared the bar. I replaced the absolute threshold with a relative one, keeping windows that score at least half of the best window *in the same image*, which removes the calibration difference instead of tuning around it. SVM went from 0% to 37% and the forest from 0% to 27%.
+The window filter used an absolute confidence threshold of 0.55, which suited the MLP and silently returned **nothing at all** for the SVM and the forest. Both scored 0%, and I nearly wrote that up as "these models cannot segment". They can: a softmax peaks near 1.0, while Platt scaling and vote-averaging across 300 trees both top out near 0.5, so no window ever cleared the bar. The threshold is now relative - a window is kept if it scores at least half of the best window in the same image - which removes the calibration difference instead of tuning around it.
 
-A second train/test mismatch came out of the same investigation. The sliding window pads each crop to a square before resizing, but the training tiles were resized directly, so every model was scoring patches slightly outside the distribution it was fitted on. Both paths now go through one shared `to_patch()` function. The MLP gained a little from this; the SVM and forest needed it far more, which fits - they are much less tolerant of that kind of drift than a network is.
+The second was a train/test mismatch. The sliding window padded each crop to a square before resizing, but the training tiles were resized directly, so every model was scoring patches slightly outside the distribution it was fitted on. Both paths now go through one shared `to_patch()` function.
 
-| Model | Family | Overall | wide | tight | touching |
-|---|---|---|---|---|---|
-| sliding_mlp | fully-connected network | 57% | 60% | 70% | 40% |
-| sliding_svm | RBF kernel machine | 37% | 40% | 60% | 10% |
-| sliding_rf | decision-tree ensemble | 27% | 50% | 20% | 10% |
-| sliding_cnn | convolutional network | not measured yet | | | |
+The most useful finding is in the `sliding_cnn` row. Thien's LeNet recognises single MNIST digits at 99%, far better than my MLP, yet it segments worse: 47% against 57%. The reason is that my MLP was trained with an eleventh "not a digit" class and the CNN was not. The CNN was only ever shown clean, centred digits, so when a window lands on half of one digit and half of the next it still has to pick one of ten answers, and I can only infer "not a digit" indirectly from how flat its softmax is. For sliding-window segmentation, being able to say "no" matters more than raw recognition accuracy. The CNN is still the best of the four on touching digits (50%), where its learned features help.
 
-`sliding_cnn` is written and registered but could not be measured here, because TensorFlow is not installed in the environment I was testing in. It runs on my own machine and the number goes in the report.
+Two caveats. The three scikit-learn models are trained on the 500 exported digit images, not the full 60,000, so they are handicapped and the ordering may change when retrained. And every number here comes from generated images; the real handwritten set is still to come.
 
-All three measurable models sit below the plain classical methods, and I would rather state that than bury it. The likely reason is the training data: these are fitted on the 500 exported digit images, not the full 60,000, so the comparison currently measures a handicapped version of each model. Retraining on full MNIST is the first Sprint 3 item, and I expect the ordering to change.
+96 tests, all passing.
 
-One caveat on the MLP: it is trained on the 500 exported digit images, not the full 60,000. Its ceiling is lower than it should be, and `sliding_mlp`'s 50% partly reflects that rather than the method. Retraining it on full MNIST is a Sprint 3 item.
+### Sprint 3 - preparing for the real handwritten set
 
-83 tests, all passing.
+Before photographing real handwriting I tested the preprocessing on a synthetic phone-style photo: off-white textured paper with a shading gradient. Two faults showed up that clean MNIST-style tests could never have caught.
+
+- **The 20x20 box did nothing on a photo.** `fit_to_mnist_box()` located the digit as "every non-zero pixel". Inverted paper is never exactly 0, so every pixel counted and the crop became the whole 800x600 frame; the digit was shrunk together with all the paper around it instead of filling the 20-pixel box. It now locates the ink with an Otsu mask and only uses the mask to decide where to crop, keeping the original grey values. Same test image: 15x20.
+- **Adaptive thresholding hollowed out thick strokes.** The block size was fixed at 11 pixels. On a large photo a pen stroke is wider than that, so the inside of the stroke is compared only against itself and comes out as paper; only 26% of the stroke survived. The block now scales with the image (an eighth of the shorter side, never below 11), which recovers the whole stroke. On 28x28 MNIST it is still 11, so the existing comparison numbers are unaffected. The constant `c=2` also marked about 30% of the noisy paper as ink, where `c=10` gave almost none; I have left it at 2 until the real set shows what real paper does.
+
+- **Tight digit crops were fed to the model the wrong way round.** Wiring segmentation to the classifier for the first time, I found that a tight box around a thick digit can be more than half ink. `invert_if_dark_strokes()` decided on the image's overall mean, so those crops stayed black-on-white and the model saw the opposite of what it was trained on. It now judges the background from the image border, which is paper however much ink sits inside. On MNIST-derived images the decision is identical, so earlier numbers still stand.
+
+All three fixes have regression tests.
+
+I also wrote `experiments/evaluate_custom.py`, ready for the photos. It repeats the Task 1 comparison on real single digits, and for real numbers it runs segmentation followed by recognition of every crop, reporting both "found the right number of digits" and "read the whole number exactly". A smoke test on synthetic photo-style numbers already suggested something worth checking on the real set: with plain resizing a tight crop is stretched to fill 28x28, while the 20x20 box keeps its shape, so `SELECTED_CONFIG` may need to change for the end-to-end pipeline even though `grayscale_only` won on MNIST. The synthetic smoke test is not evidence either way; the real photos will decide.
+
+### Sprint 3 - first results on real handwriting
+
+**Test set.** I wrote the test set by hand on two A4 sheets and photographed them with a phone. `src/split_sheet.py` cuts a sheet into one image per number, keeps a margin of paper around each, and marks a number as touching only when it measurably has fewer ink blobs than digits, rather than when I intended it to touch. The set has 70 single digits (7 per digit, written in six deliberately different styles: small, large, slanted, fast, uneven height) and 27 multi-digit numbers of 2 to 5 digits, 8 of which touch. Both original photos are kept in `data/custom_samples/sheets/`.
+
+**MNIST first, repeated properly.** Two single runs of the MNIST comparison ranked the configurations differently, so `compare_preprocessing.py` now trains each configuration five times with different seeds. With that, the top three are tied: otsu 0.967 +/- 0.006, grayscale_only 0.967 +/- 0.005, adaptive 0.967 +/- 0.003. MNIST cannot separate them.
+
+**Real photos separate them immediately.** Same team CNN, 70 real digits (`reports/custom_preprocessing.csv`):
+
+| Configuration | MNIST (5 seeds) | Real photos |
+|---|---|---|
+| otsu | 0.967 | **82.9%** |
+| otsu_denoised | 0.959 | 82.9% |
+| otsu_denoised_centered | 0.956 | 80.0% |
+| adaptive | 0.967 | 51.4% |
+| grayscale_only (was selected) | 0.967 | 32.9% |
+| grayscale_mnist_box | 0.962 | 28.6% |
+| adaptive_mnist_box | 0.965 | 20.0% |
+
+The configuration I had selected on MNIST reads one real digit in three; Otsu reads more than four in five. The reason is the background. MNIST's background is exactly 0, and a photo's is not: after inversion, grayscale_only hands the CNN a digit on a grey haze it has never seen, while Otsu forces the paper to exactly 0 and the input looks like MNIST again. This is the caveat I recorded in Sprint 2 - that MNIST is the case least favourable to thresholding - measured rather than assumed, and larger than I expected: 50 percentage points. With 70 images the standard error is about 5 points, so the Otsu family's lead is far outside noise; the gaps within the Otsu family are not.
+
+The 20x20 box did not help on single digits, which surprised me. These crops already carry a margin of paper, so a plain resize leaves the digit at roughly MNIST scale anyway, and the box's own ink-finding step is thrown off by adaptive thresholding's speckle on real paper. The box should matter for the tight crops segmentation produces, so I added `otsu_mnist_box` and a whole-number test across every method and configuration (`evaluate_custom.py --all-configs`) to settle the combination on end-to-end results.
+
+**Segmentation: the Sprint 2 selection failed.** Counting digits correctly on the 27 real numbers (`reports/custom_segmentation.csv`):
+
+| Method | Generated | Real photos |
+|---|---|---|
+| contours | 70% | **74%** |
+| connected components | 70% | 74% |
+| watershed | 50% | 52% |
+| projection (was selected) | 83% | **19%** |
+
+Projection was the best method on generated data and the worst on real handwriting. A real pen stroke is thin, so a column through the middle of a 0 or a 6 holds only a few pixels of ink, and the valley threshold I had tuned on MNIST-thick strokes reads that as a gap between digits; "60" came out as eleven pieces. `SELECTED_METHOD` is now `contours`. Touching digits remain unsolved: 2 of the 8 touching numbers are counted correctly.
+
+The lesson I take from this sprint is concrete: both of my Sprint 2 selections were made on data that could not tell the options apart, and both were wrong. The comparison only became informative once it ran on the kind of input the system will actually receive.
+
+### Sprint 3 - the final selection, chosen end to end
+
+Segmentation and preprocessing interact, so I chose them together: every segmentation method against every preprocessing configuration, on the 27 real numbers, counting a number as right only if every digit is right (`evaluate_custom.py --all-configs`, `reports/custom_pipeline.csv`). With contours as the segmenter:
+
+| Configuration | Real single digits | Real numbers, end to end |
+|---|---|---|
+| **otsu_mnist_box** (selected) | 82.9% | **63%** |
+| adaptive_mnist_box | 20.0% | 56% |
+| grayscale_mnist_box | 28.6% | 19% |
+| otsu | 82.9% | 7% |
+| grayscale_only (Sprint 2 choice) | 32.9% | 0% |
+
+This is the result that justifies the 20x20 box. On single digits it made no difference to Otsu at all - both read 58 of 70 - because those crops already carry a margin of paper. End to end it is the whole difference: segmentation hands over tight crops, a plain resize stretches each one to fill the frame, and Otsu without the box falls from 83% to 7%. With the box it reads 63% of whole numbers, and 90% of individual digits in the numbers that were segmented correctly.
+
+`SELECTED_CONFIG` is now `otsu_mnist_box` and `SELECTED_METHOD` is `contours`. It is the only configuration at the top of both real tests. I would not claim it beats `adaptive_mnist_box` on the end-to-end figure alone - 63% against 56% on 27 numbers is within the roughly 9-point standard error - but on single digits it is 83% against 20%, which is not.
+
+The remaining error is now mostly segmentation, not recognition. Of the 10 numbers read wrongly, 7 were split into the wrong number of pieces - 6 because the digits touch, one because the top bar of a 5 came away as a separate blob - and only 3 were segmented correctly but misread. Touching digits are the limit of the whole system, not only of Task 2.
 
 ### Blockers / risks
 
-- No blockers on my components.
-- Risk noted for later: touching or overlapping digits are a known hard case for contour-based segmentation. Current generated data uses generous spacing, so the 100% result should not be read as robustness to real handwriting. I will document this as a limitation and test it explicitly against the real handwritten set.
-- The tutor also asked for at least four models in the Task 3 comparison. The team currently has three, and all three are CNNs, so they are one technique in three configurations rather than the "different techniques" the brief asks for. My k-NN is the obvious fourth and the only non-CNN in the project, but it currently runs on 12,000 training images as a measuring instrument for Task 1, not as a model in its own right. It needs a proper run on the full 60,000 before it can stand next to the CNNs.
+- Touching digits: no method passes 60%. To be documented as a limitation and re-tested on real handwriting.
+- The two `mnist_box` configurations have not been scored yet; that needs a run of `compare_preprocessing.py` on my machine, where TensorFlow is installed.
+- None of my code is on `main` yet, which blocks Russell's pipeline and Liam's evaluation. Opening the pull request is the first Sprint 3 action.
+- 70 real digits is enough to separate the Otsu family from the rest, not to rank within it.
+- One writer, one pen, one paper. The next step is a sheet from each teammate, and one sheet with a black pen, lined paper and a side light.
 
 ### Next week
 
-- Photograph and prepare a real handwritten test set into `data/custom_samples/`.
-- Re-run the preprocessing comparison on that set and compare the ranking against the MNIST result.
-- Provide the labelled generated dataset to Liam for Task 4 and the number generator to Russell for GUI wiring.
+- Open the pull request into `main` and send Russell and Liam the entry points; `segment_digits()` and `preprocess()` now default to the selected pair, so the pipeline needs no extra settings.
+- Re-run `compare_preprocessing.py` so `otsu_mnist_box` has its MNIST figure next to the others.
+- Collect a sheet of handwriting from each teammate, plus one with a different pen, lined paper and uneven light, and re-run both real-data comparisons on the larger set.
+- Draft the Data preprocessing and Image segmentation report sections from these tables.

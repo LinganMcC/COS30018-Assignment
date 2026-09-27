@@ -204,32 +204,29 @@ METHODS = {
 }
 
 
-# Selected technique (Task 2), from reports/segmentation_comparison.csv.
-# Correct-digit-count accuracy on 30 generated numbers, split by how much the
-# digits are spaced:
+# Selected technique (Task 2).
 #
-#                          overall   tight   touching   wide
-#   projection    <-         83%     100%       60%      90%
-#   contours                 70%      80%       40%      90%
-#   connected_components     70%      80%       40%      90%
-#   watershed                50%      60%       40%      50%
+# Correct-digit-count accuracy, first on 30 generated numbers
+# (reports/segmentation_comparison.csv), then on 27 real photographed numbers
+# (reports/custom_segmentation.csv, 8 of them with digits that touch):
 #
-# Three things this table says, none of which were visible before the test set
-# included digits that actually touch:
+#                          generated   real photos
+#   contours       <-         70%         74%
+#   connected_components      70%         74%
+#   watershed                 50%         52%
+#   projection                83%         19%
 #
-#   1. contours and connected_components score identically on every level.
-#      They are not two independent techniques; both find connected regions of
-#      ink and only differ in how OpenCV computes them.
-#   2. projection wins because it works on ink per column rather than on
-#      connectivity, so it can still cut two digits that are joined.
-#   3. watershed is the worst here. Its distance transform assumes blob-like
-#      objects with a peak in the middle; digits are strokes of roughly even
-#      width, so there is no per-digit peak to seed from. Investigated and
-#      rejected, with a reason.
+# projection was selected on the generated set and it did not survive contact
+# with real handwriting: a real pen stroke is thin, so a column through the
+# middle of a 0 or 6 holds only a few pixels of ink and the valley threshold
+# treats it as a gap between digits. "60" came out as 11 pieces. The tuned
+# threshold was fitted to MNIST-thick strokes and did not transfer.
 #
-# Touching digits remain the open limitation: 60% is the best any of the four
-# manages. Not solved, only reduced.
-SELECTED_METHOD = "projection"
+# contours and connected_components tie on both sets because they find the
+# same thing - connected regions of ink - computed two ways. contours is kept
+# as the selection. Touching digits remain the open limitation: 2 of the 8
+# touching real numbers are counted correctly.
+SELECTED_METHOD = "contours"
 
 
 def segment_digits(image: np.ndarray, method: str = SELECTED_METHOD, **kwargs

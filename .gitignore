@@ -27,3 +27,4 @@ Thumbs.db
 .vscode/
 .idea/
 models/checkpoints/*.pkl
+reports/custom_demo/

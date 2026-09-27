@@ -27,8 +27,23 @@ def binarize_otsu(image: np.ndarray) -> np.ndarray:
     return binary
 
 
-def binarize_adaptive(image: np.ndarray, block_size: int = 11, c: int = 2) -> np.ndarray:
-    """Adaptive threshold for uneven lighting."""
+def binarize_adaptive(image: np.ndarray, block_size: int | None = None,
+                      c: int = 2) -> np.ndarray:
+    """Adaptive threshold for uneven lighting.
+
+    The neighbourhood has to be wider than a pen stroke, otherwise the inside
+    of a thick stroke is compared only against itself and comes out as paper.
+    A fixed 11 pixels suits a small scan but recovered only about a quarter of
+    the stroke on an 800x600 test photo, so by default the block scales with
+    the image (an eighth of the shorter side, never below 11, always odd).
+
+    c=2 suits clean images. On a noisy test photo it marked about 30% of the
+    paper as ink, and c=10 brought that to almost zero. Left at 2 until the
+    real handwritten set says otherwise.
+    """
+    if block_size is None:
+        block_size = max(11, min(image.shape[:2]) // 8)
+        block_size += 1 - block_size % 2          # must be odd
     return cv2.adaptiveThreshold(
         image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY_INV, block_size, c,
@@ -36,8 +51,16 @@ def binarize_adaptive(image: np.ndarray, block_size: int = 11, c: int = 2) -> np
 
 
 def invert_if_dark_strokes(image: np.ndarray) -> np.ndarray:
-    """Invert if the image is mostly bright."""
-    if image.mean() > 127:
+    """Invert if the background is bright, so strokes end up light on dark.
+
+    The background is judged from the image border, not the whole image. A
+    tight crop around a thick digit can be more than half ink, so its overall
+    mean is dark even though the paper around it is white - the old mean test
+    left those crops un-inverted and the model saw a black digit on white. The
+    border of an image is almost always paper, however much ink is inside.
+    """
+    border = np.concatenate([image[0], image[-1], image[:, 0], image[:, -1]])
+    if np.median(border) > 127:
         return cv2.bitwise_not(image)
     return image
 
@@ -70,14 +93,29 @@ def fit_to_mnist_box(image: np.ndarray, box: int = 20,
     the whole frame, which is a shape the model never saw in training.
 
     Expects white strokes on a black background.
+
+    The ink is located with an Otsu mask rather than "any non-zero pixel". On a
+    clean scan the two are the same, but on a photo the inverted paper is never
+    exactly 0, so every pixel counts as non-zero and the box silently becomes
+    the whole frame. The mask only decides where to crop; the pixels copied
+    into the box keep their original grey values.
     """
     width, height = size
-    ink = cv2.findNonZero(image)
-    if ink is None:                       # nothing drawn, nothing to fit
+    if not image.any():                   # nothing drawn, nothing to fit
+        return np.zeros((height, width), dtype=image.dtype)
+
+    _, mask = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ink = cv2.findNonZero(mask)
+    if ink is None:                       # flat image, no ink to separate
         return np.zeros((height, width), dtype=image.dtype)
 
     x, y, w, h = cv2.boundingRect(ink)
-    digit = image[y:y + h, x:x + w]
+    pad = 2                               # keep the faint anti-aliased edge
+    x0, y0 = max(0, x - pad), max(0, y - pad)
+    x1 = min(image.shape[1], x + w + pad)
+    y1 = min(image.shape[0], y + h + pad)
+    digit = image[y0:y1, x0:x1]
+    h, w = digit.shape
 
     scale = box / max(w, h)
     new_w = max(1, int(round(w * scale)))
@@ -128,26 +166,46 @@ CONFIGS = {
         "denoise": True, "threshold": "adaptive", "center": False, "mnist_box": True,
         "description": "Grayscale + denoise + adaptive + 20x20 MNIST box",
     },
+    # Added after the first run on real photos: Otsu was the clear winner on
+    # single digits (83% against 33% for grayscale_only), and the 20x20 box is
+    # what keeps a tight crop from segmentation from being stretched. This is
+    # the combination of the two.
+    "otsu_mnist_box": {
+        "denoise": False, "threshold": "otsu", "center": False, "mnist_box": True,
+        "description": "Grayscale + Otsu binarization + 20x20 MNIST box",
+    },
 }
 
-# Selected configuration, based on reports/preprocessing_comparison.csv
-# (accuracy of the team's LeNet, retrained per configuration):
-#   grayscale_only          0.9660   <- selected
-#   otsu                    0.9650
-#   adaptive                0.9603
-#   otsu_denoised           0.9557
-#   otsu_denoised_centered  0.9480
+# Selected configuration (Task 1). Chosen on three measurements, because the
+# first one could not tell the options apart:
 #
-# Caveats:
-#  - 3000 test images gives a standard error of about 0.3 percentage points,
-#    so grayscale_only and otsu are tied. What the results show is that the
-#    two simplest configurations beat the ones that denoise or re-centre.
-#  - MNIST is clean and evenly lit, which is the worst case for thresholding
-#    and denoising. Re-run on photographed handwriting before the final
-#    report; if adaptive wins there, switch to it.
-#  - The two mnist_box configurations were added after this run and have not
-#    been scored yet.
-SELECTED_CONFIG = "grayscale_only"
+#                        MNIST, 5 seeds    70 real digits   27 real numbers,
+#                        (team LeNet)      (single crops)   read end to end*
+#   otsu_mnist_box  <-   not yet run          82.9%              63%
+#   otsu                 0.967 +/- 0.006      82.9%               7%
+#   otsu_denoised        0.959 +/- 0.005      82.9%               7%
+#   adaptive_mnist_box   0.965 +/- 0.003      20.0%              56%
+#   adaptive             0.967 +/- 0.003      51.4%               4%
+#   grayscale_only       0.967 +/- 0.005      32.9%               0%
+#   grayscale_mnist_box  0.962 +/- 0.003      28.6%              19%
+#
+#   * segmented with SELECTED_METHOD (contours), each crop classified by the
+#     team CNN, number counted right only if every digit is right.
+#
+# 1. MNIST ties the top three within one standard deviation. It cannot choose.
+# 2. On real photos thresholding is essential: Otsu forces the paper to exactly
+#    0, as in MNIST, while grayscale_only leaves a grey haze the CNN never saw.
+# 3. End to end, the 20x20 box is essential: segmentation hands over tight
+#    crops, and a plain resize stretches them to fill 28x28. Otsu alone falls
+#    from 83% on single digits to 7% on numbers; with the box it reads 63%.
+#
+# otsu_mnist_box is the only configuration at the top of both real tests.
+# With 27 numbers the end-to-end figure is +/- about 9 points, so the margin
+# over adaptive_mnist_box (56%) alone is not decisive; its 83% against 20% on
+# single digits is. The remaining end-to-end errors are mostly segmentation:
+# 7 of the 10 misread numbers were split into the wrong number of pieces, 6 of
+# them because the digits touch.
+SELECTED_CONFIG = "otsu_mnist_box"
 
 
 def preprocess(image: np.ndarray, config: str = SELECTED_CONFIG,

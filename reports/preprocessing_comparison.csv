@@ -1,6 +1,8 @@
-config,description,cnn_accuracy,epochs,train_seconds,ms_per_image,knn_accuracy
-grayscale_only,Grayscale + resize only (no thresholding),0.966,12,7.6,0.006,0.9253
-otsu,Grayscale + Otsu binarization,0.965,11,6.4,0.008,0.9167
-adaptive,Grayscale + denoise + adaptive thresholding,0.9603,15,8.4,0.013,0.92
-otsu_denoised,Grayscale + median denoise + Otsu binarization,0.9557,15,8.3,0.009,0.9153
-otsu_denoised_centered,Grayscale + denoise + Otsu + centre of mass alignment,0.948,9,6.1,0.016,0.907
+config,description,cnn_mean,cnn_std,cnn_min,cnn_max,runs,epochs_mean,train_seconds_mean,ms_per_image
+otsu,Grayscale + Otsu binarization,0.967,0.0061,0.9577,0.973,5,16.6,9.3,0.005
+grayscale_only,Grayscale + resize only (no thresholding),0.9667,0.0048,0.96,0.9713,5,16.2,9.1,0.009
+adaptive,Grayscale + denoise + adaptive thresholding,0.9667,0.0034,0.9613,0.9703,5,17.6,9.8,0.012
+adaptive_mnist_box,Grayscale + denoise + adaptive + 20x20 MNIST box,0.9645,0.0033,0.962,0.9693,5,18.8,11.2,0.027
+grayscale_mnist_box,Grayscale + 20x20 MNIST box (no thresholding),0.9617,0.0034,0.9587,0.9653,5,12.4,7.6,0.026
+otsu_denoised,Grayscale + median denoise + Otsu binarization,0.9592,0.0054,0.9517,0.9643,5,15.2,8.6,0.008
+otsu_denoised_centered,Grayscale + denoise + Otsu + centre of mass alignment,0.9558,0.0053,0.948,0.9603,5,15.6,8.6,0.013
