@@ -115,12 +115,25 @@ def main() -> None:
     if seg.exists():
         with open(seg, encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh))
-        print(f"  {status(True)} {len(rows)} segmentation methods compared")
+        print(f"  {status(True)} {len(rows)} segmentation methods compared on generated numbers")
         for r in rows:
             print(f"      {r['method']:26s} {r['correct_digit_count']}/{r['images_tested']} "
                   f"correct digit count ({float(r['accuracy']):.0%})")
     else:
         print(f"  {status(False)} Comparison not run yet")
+
+    real_seg = ROOT / "reports" / "custom_segmentation.csv"
+    if real_seg.exists():
+        with open(real_seg, encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        print(f"  {status(True)} Compared on real handwriting ({rows[0]['images']} numbers, "
+              f"segmented then read by the CNN)")
+        for r in rows:
+            mark = "  <- selected" if r.get("selected") else ""
+            print(f"      {r['method']:26s} count {float(r['count_accuracy']):.0%}, "
+                  f"exact number {float(r['exact_number_accuracy']):.0%}{mark}")
+    else:
+        print(f"  {status(False)} Not yet compared on real handwriting")
 
     demo = ROOT / "reports" / "segmentation_demo"
     n_demo = count_files(demo, "*.png")
@@ -156,7 +169,14 @@ def main() -> None:
         )
         pushed = upstream.returncode == 0
         if pushed:
-            print(f"  {status(True)} Branch pushed, tracking {upstream.stdout.strip()}")
+            # Tracking a remote branch is not the same as being up to date with it.
+            counts = subprocess.run(["git", "rev-list", "--left-right", "--count", "HEAD...@{u}"],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=20)
+            ahead = int(counts.stdout.split()[0]) if counts.returncode == 0 else 0
+            if ahead:
+                print(f"  {status(False)} {ahead} commit(s) not pushed yet  {DIM}(git push){END}")
+            else:
+                print(f"  {status(True)} Branch pushed and up to date with {upstream.stdout.strip()}")
         else:
             branch = subprocess.run(["git", "branch", "--show-current"], cwd=ROOT,
                                     capture_output=True, text=True, timeout=20)
