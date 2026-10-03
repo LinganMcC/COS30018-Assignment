@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ PATIENCE = 5      # EarlyStopping patience; shared across all three CNNs.
 
 MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_lenet.keras"
 HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_lenet_history.png"
+HISTORY_JSON_PATH = Path(__file__).parent.parent / "experiments" / "cnn_lenet_history.json"
 
 
 def build_lenet5() -> tf.keras.Model:
@@ -138,6 +140,9 @@ def main() -> None:
 
     # 6. Save the training-curve plot for the report.
     save_history_plot(history, HISTORY_PLOT_PATH)
+    # Save raw per-epoch history so compare_models.py can overlay all models.
+    HISTORY_JSON_PATH.write_text(json.dumps(
+        {k: [float(v) for v in vals] for k, vals in history.history.items()}, indent=2))
 
     # 7. Append this run to the shared experiment log.
     log_run(

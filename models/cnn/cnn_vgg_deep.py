@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -7,9 +8,7 @@ from mnist_loader import load_mnist
 from experiment_logger import log_run
 
 
-# NOTE: You referred to this model as "vgg shallow", but asked for it to be a
-# stronger / deeper VGG than cnn_vgg_small (which has 2 conv blocks). This is a
-# 3-block VGG, so it is named "vgg_deep" to avoid confusion. Rename freely.
+# This is a 3-block VGG
 RUN_ID = "cnn_vgg_deep_run1"
 ARCHITECTURE = "Deeper VGG-style (3 blocks, BatchNorm + Dropout)"
 LEARNING_RATE = 1e-3
@@ -20,6 +19,7 @@ PATIENCE = 5      # EarlyStopping patience; shared across all models.
 
 MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_vgg_deep.keras"
 HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_vgg_deep_history.png"
+HISTORY_JSON_PATH = Path(__file__).parent.parent / "experiments" / "cnn_vgg_deep_history.json"
 
 
 def conv_block(x, filters: int) -> tf.Tensor:
@@ -118,6 +118,9 @@ def main() -> None:
     print(f"Training time     : {training_time_s:.1f} s")
 
     save_history_plot(history, HISTORY_PLOT_PATH)
+    # Save raw per-epoch history so compare_models.py can overlay all models.
+    HISTORY_JSON_PATH.write_text(json.dumps(
+        {k: [float(v) for v in vals] for k, vals in history.history.items()}, indent=2))
 
     log_run(
         run_id=RUN_ID,

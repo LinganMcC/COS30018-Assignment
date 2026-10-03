@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -17,6 +18,7 @@ PATIENCE = 5      # EarlyStopping patience; shared across all models.
 
 MODEL_PATH = Path(__file__).parent.parent / "checkpoints" / "cnn_resnet.keras"
 HISTORY_PLOT_PATH = Path(__file__).parent.parent / "experiments" / "cnn_resnet_history.png"
+HISTORY_JSON_PATH = Path(__file__).parent.parent / "experiments" / "cnn_resnet_history.json"
 
 
 def residual_block(x, filters: int, stride: int = 1) -> tf.Tensor:
@@ -131,6 +133,9 @@ def main() -> None:
     print(f"Training time     : {training_time_s:.1f} s")
 
     save_history_plot(history, HISTORY_PLOT_PATH)
+    # Save raw per-epoch history so compare_models.py can overlay all models.
+    HISTORY_JSON_PATH.write_text(json.dumps(
+        {k: [float(v) for v in vals] for k, vals in history.history.items()}, indent=2))
 
     log_run(
         run_id=RUN_ID,
