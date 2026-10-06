@@ -45,27 +45,23 @@ def drop_image(event):
 # Initialize window
 root = TkinterDnD.Tk()
 root.title("Handwritten Number Recognition System")
-root.geometry("1000x600")
+root.geometry("740x515")
 
-left_box = tk.Frame(root, width=200, height=200, relief="solid", borderwidth=2, background="gainsboro")
+# Settings box
+settings = tk.Frame(root, width=200, height=300, relief="solid", borderwidth=2, background="gainsboro")
+settings.grid(row=0, column=0, padx=10, pady=10)
+settings.grid_propagate(False)
 
 # Drop box
 drop_box = tk.Frame(root, width=500, height=300, relief="solid", borderwidth=2, background="gainsboro")
-
-output = tk.Frame(root, width=750, height=175, relief="solid", borderwidth=2, background="gainsboro")
-
-# Top row
-left_box.grid(row=0, column=0, padx=10, pady=10)
 drop_box.grid(row=0, column=1, padx=10, pady=10)
-
-# Bottom row
-output.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
-
-# Prevent the frames from shrinking to their contents
-left_box.grid_propagate(False)
 drop_box.grid_propagate(False)
 drop_box.pack_propagate(False)
+
+# Output box
+output = tk.Frame(root, width=720, height=175, relief="solid", borderwidth=2, background="gainsboro")
 output.grid_propagate(False)
+output.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
 
 #Drop box label/Image display
 image_label = tk.Label(drop_box, text="Insert or drop file here", font=("Arial", 14), background="gainsboro")
