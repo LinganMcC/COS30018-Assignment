@@ -138,6 +138,8 @@ Results on the same 30 images, final run on my own machine (`reports/segmentatio
 | sliding_svm | model | 37% | 40% | 60% | 10% |
 | sliding_rf | model | 23% | 40% | 20% | 10% |
 
+*Superseded in Week 9: `sliding_cnn` is now 67% / 30% / 90% / 80% after Thien retrained the LeNet checkpoint. See the Week 9 entry. Every other row is unchanged.*
+
 **Correction to an earlier draft of this entry.** A first run had `cutpoint_mlp` at 90% on touching digits and I wrote that up as the headline. That number was measured before the `to_patch()` fix described below, when the classifiers were scoring patches in a different format from the one they were trained on. After the fix it is 60%, the same as projection. The honest result is that none of the ten methods gets past 60% on touching digits: the model-based family does not break the ceiling I had documented, it only matches it. The figure `reports/segmentation_touching.png` from that first run was also out of date; both Task 2 figures are now produced by `experiments/make_segmentation_figures.py` so they always match the current code.
 
 What survives is a different reading of the table. The two families fail in different places: `cutpoint_mlp` is strong on tight and touching digits but the worst on well-separated ones (40%), because it over-segments when there is nothing to resolve, while the classical methods are the reverse. `confidence_split` runs the cheap classical step first and only asks the model where the blob geometry says a decision is needed, and it comes second overall at a fraction of the sliding window's cost.
@@ -218,6 +220,8 @@ Segmentation and preprocessing interact, so I chose them together: every segment
 | otsu | 82.9% | 7% |
 | grayscale_only (Sprint 2 choice) | 32.9% | 0% |
 
+*Superseded in Week 9: re-measured against the retrained LeNet checkpoint. See the Week 9 entry.*
+
 This is the result that justifies the 20x20 box. On single digits it made no difference to Otsu at all - both read 58 of 70 - because those crops already carry a margin of paper. End to end it is the whole difference: segmentation hands over tight crops, a plain resize stretches each one to fill the frame, and Otsu without the box falls from 83% to 7%. With the box it reads 63% of whole numbers, and 90% of individual digits in the numbers that were segmented correctly.
 
 On MNIST, `otsu_mnist_box` scores 0.960 +/- 0.005, and all eight configurations fall within run-to-run noise of one another - expected, since MNIST digits already sit in a 20x20 box, so the box has nothing to correct there. The spread only appears on real photos: 20% to 83% on single digits, 0% to 63% on whole numbers.
@@ -226,10 +230,52 @@ On MNIST, `otsu_mnist_box` scores 0.960 +/- 0.005, and all eight configurations 
 
 The remaining error is now mostly segmentation, not recognition. Of the 10 numbers read wrongly, 7 were split into the wrong number of pieces - 6 because the digits touch, one because the top bar of a 5 came away as a separate blob - and only 3 were segmented correctly but misread. Touching digits are the limit of the whole system, not only of Task 2.
 
+### Week 9 - merged main, and the numbers moved
+
+Before opening the pull request I merged `origin/main` into my branch, which was eight commits behind. One conflict, in `requirements.txt`, where Russell had added `tkinterdnd2` and a looser pytest pin than mine; I kept both lines and my pin. All 97 tests still pass after the merge.
+
+The merge also brought Thien's retrained `cnn_lenet.keras` (29 September: 30-epoch budget, patience 5, LR-on-plateau, 0.9909 test accuracy). My code loads that checkpoint in two places, `digit_classifier.py` for the sliding-window segmenters and `evaluate_custom.py` for reading the crops, so I re-ran both comparisons rather than keep numbers measured against a file that no longer exists.
+
+**Generated images.** Only `sliding_cnn` moved. The nine methods that do not load the checkpoint are identical to the last run, which is the check that the change came from where I thought it did.
+
+| sliding_cnn | Overall | wide | tight | touching |
+|---|---|---|---|---|
+| old checkpoint | 47% | 30% | 60% | 50% |
+| new checkpoint | 67% | 30% | 90% | 80% |
+
+That reverses what I wrote earlier. The CNN now segments *better* than my MLP, 67% against 57%, not worse, so the "being able to say no matters more than recognition accuracy" reading does not hold at this checkpoint. It also breaks the ceiling I had documented: `sliding_cnn` reads 80% of touching digits where the best classical method manages 60%. Touching digits were the case I said the model-based family could not win, and on generated images one of them now does.
+
+**Real handwriting.** This is the first run with all ten methods on the real set; the earlier run only covered the four classical ones.
+
+| Method | Generated | Real, exact number |
+|---|---|---|
+| contours (selected) | 70% | **63%** |
+| confidence_split | 80% | **63%** |
+| cutpoint_mlp | 60% | 19% |
+| sliding_cnn | 67% | 7% |
+| sliding_mlp | 57% | 7% |
+
+The model-based family does not survive real photographs. `sliding_cnn` goes from 67% to 7%. The exception is `confidence_split`, which ties contours exactly, and it is the one that runs the cheap classical step first and calls the model only where the blob geometry says a decision is needed. The sliding window is what fails: it scores every window position, and real paper gives it far more places to be confidently wrong than a generated image does. I am keeping `contours` as `SELECTED_METHOD` because it matches on the headline figure and is far cheaper.
+
+**Preprocessing, re-measured on the 70 real digits.**
+
+| Configuration | Old checkpoint | New checkpoint |
+|---|---|---|
+| **otsu_mnist_box** (selected) | 82.9% | **84.3%** |
+| otsu_denoised_centered | 80.0% | 81.4% |
+| otsu | 82.9% | 78.6% |
+| adaptive | 51.4% | 61.4% |
+| grayscale_only | 32.9% | 54.3% |
+| adaptive_mnist_box | 20.0% | 40.0% |
+
+The selection survives, and is cleaner than before: `otsu_mnist_box` was tied three ways at 82.9%, and is now alone at the top on 59 of 70. End to end nothing moved at all - 63% of whole numbers read exactly, 90% of digits when the count is right - so the conclusion that the 20x20 box is what makes the tight crops work is unaffected. What did narrow is the gap I called out: `grayscale_only` went from 33% to 54%, so the distance between the worst and the best configuration is 30 points, not 50.
+
+The lesson I am recording for myself: a result is not reproducible just because the script is committed, if the script loads an artefact somebody else owns and nothing records which version of it was used. From here I note the checkpoint date next to any number that depends on it.
+
 ### Blockers / risks
 
-- Touching digits: no method passes 60%. To be documented as a limitation and re-tested on real handwriting.
-- The two `mnist_box` configurations have not been scored yet; that needs a run of `compare_preprocessing.py` on my machine, where TensorFlow is installed.
+- Touching digits remain the system limit on real handwriting: 2 of the 8 touching numbers are read correctly. On generated images `sliding_cnn` reaches 80%, but that does not carry over to photographs.
+- The MNIST comparison still reflects the previous LeNet training settings; `cnn_lenet.py` changed in the merge (20 to 30 epochs, patience 3 to 5, LR-on-plateau), so `compare_preprocessing.py` needs a re-run for those figures to match the checkpoint everything else now uses.
 - None of my code is on `main` yet, which blocks Russell's pipeline and Liam's evaluation. Opening the pull request is the first Sprint 3 action.
 - 70 real digits is enough to separate the Otsu family from the rest, not to rank within it.
 - One writer, one pen, one paper. The next step is a sheet from each teammate, and one sheet with a black pen, lined paper and a side light.
