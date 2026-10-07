@@ -33,9 +33,13 @@ def log_run(
     training_time_s: float,
     val_accuracy: float | None = None,
     notes: str = "",
-    log_path: Path | str = LOG_PATH,
+    log_path: Path | str | None = None,
 ) -> None:
     """Append one row to the experiment log. Creates the file + header if needed."""
+    # Look up LOG_PATH at call time (not as a default arg) so tests/callers can
+    # override it by reassigning experiment_logger.LOG_PATH.
+    if log_path is None:
+        log_path = LOG_PATH
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
