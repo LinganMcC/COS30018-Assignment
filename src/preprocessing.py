@@ -181,7 +181,7 @@ CONFIGS = {
 #
 #                        MNIST, 5 seeds    70 real digits   27 real numbers,
 #                        (team LeNet)      (single crops)   read end to end*
-#   otsu_mnist_box  <-   not yet run          82.9%              63%
+#   otsu_mnist_box  <-   0.960 +/- 0.005      82.9%              63%
 #   otsu                 0.967 +/- 0.006      82.9%               7%
 #   otsu_denoised        0.959 +/- 0.005      82.9%               7%
 #   adaptive_mnist_box   0.965 +/- 0.003      20.0%              56%
@@ -192,7 +192,8 @@ CONFIGS = {
 #   * segmented with SELECTED_METHOD (contours), each crop classified by the
 #     team CNN, number counted right only if every digit is right.
 #
-# 1. MNIST ties the top three within one standard deviation. It cannot choose.
+# 1. On MNIST all eight are within run-to-run noise of each other. It cannot
+#    choose. (MNIST digits already sit in a 20x20 box, so the box adds nothing there.)
 # 2. On real photos thresholding is essential: Otsu forces the paper to exactly
 #    0, as in MNIST, while grayscale_only leaves a grey haze the CNN never saw.
 # 3. End to end, the 20x20 box is essential: segmentation hands over tight

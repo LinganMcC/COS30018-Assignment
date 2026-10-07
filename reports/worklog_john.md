@@ -220,6 +220,8 @@ Segmentation and preprocessing interact, so I chose them together: every segment
 
 This is the result that justifies the 20x20 box. On single digits it made no difference to Otsu at all - both read 58 of 70 - because those crops already carry a margin of paper. End to end it is the whole difference: segmentation hands over tight crops, a plain resize stretches each one to fill the frame, and Otsu without the box falls from 83% to 7%. With the box it reads 63% of whole numbers, and 90% of individual digits in the numbers that were segmented correctly.
 
+On MNIST, `otsu_mnist_box` scores 0.960 +/- 0.005, and all eight configurations fall within run-to-run noise of one another - expected, since MNIST digits already sit in a 20x20 box, so the box has nothing to correct there. The spread only appears on real photos: 20% to 83% on single digits, 0% to 63% on whole numbers.
+
 `SELECTED_CONFIG` is now `otsu_mnist_box` and `SELECTED_METHOD` is `contours`. It is the only configuration at the top of both real tests. I would not claim it beats `adaptive_mnist_box` on the end-to-end figure alone - 63% against 56% on 27 numbers is within the roughly 9-point standard error - but on single digits it is 83% against 20%, which is not.
 
 The remaining error is now mostly segmentation, not recognition. Of the 10 numbers read wrongly, 7 were split into the wrong number of pieces - 6 because the digits touch, one because the top bar of a 5 came away as a separate blob - and only 3 were segmented correctly but misread. Touching digits are the limit of the whole system, not only of Task 2.
@@ -235,6 +237,5 @@ The remaining error is now mostly segmentation, not recognition. Of the 10 numbe
 ### Next week
 
 - Open the pull request into `main` and send Russell and Liam the entry points; `segment_digits()` and `preprocess()` now default to the selected pair, so the pipeline needs no extra settings.
-- Re-run `compare_preprocessing.py` so `otsu_mnist_box` has its MNIST figure next to the others.
 - Collect a sheet of handwriting from each teammate, plus one with a different pen, lined paper and uneven light, and re-run both real-data comparisons on the larger set.
 - Draft the Data preprocessing and Image segmentation report sections from these tables.

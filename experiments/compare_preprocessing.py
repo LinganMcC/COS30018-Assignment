@@ -11,7 +11,7 @@ depends on the model that consumes it.
 
 Run:
     python experiments/compare_preprocessing.py
-    python experiments/compare_preprocessing.py --model vgg_small --with-knn
+    python experiments/compare_preprocessing.py --model vgg_deep --with-knn
 
 Outputs:
     reports/preprocessing_comparison.csv
@@ -46,22 +46,35 @@ BATCH_SIZE = 128
 SEED = 42
 
 # The team's architectures, weakest first. Thien owns these.
+#
+# These names follow models/cnn/, which Thien reorganised in Sprint 2:
+# cnn_shallow.py became cnn_resnet.py and cnn_vgg_small.py became
+# cnn_vgg_deep.py, and mlp_simple.py was added. The old names are gone, so
+# anything here pointing at them would fail on import.
 TEAM_MODELS = {
-    "shallow": ("cnn_shallow", "build_shallow"),
+    "mlp": ("mlp_simple", "build_mlp"),
     "lenet": ("cnn_lenet", "build_lenet5"),
-    "vgg_small": ("cnn_vgg_small", "build_vgg_small"),
+    "resnet": ("cnn_resnet", "build_resnet"),
+    "vgg_deep": ("cnn_vgg_deep", "build_vgg_deep"),
 }
 
 
 def get_model_spec(name: str):
     """Import a team model and read the training settings from its own script.
 
-    Each architecture defines its own MAX_EPOCHS and PATIENCE. Reusing them
-    matters: vgg_small needs 30 epochs and patience 5, and forcing the
-    shallower models' 20/3 on it stops training before it leaves chance level.
+    Each architecture defines its own MAX_EPOCHS and PATIENCE, and they are not
+    all the same, so reading them from the module keeps this script in step
+    with whatever Thien sets rather than hard-coding a budget here.
     """
     module_name, func_name = TEAM_MODELS[name]
-    module = __import__(module_name)
+    try:
+        module = __import__(module_name)
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            f"Cannot import models/cnn/{module_name}.py ({exc}). The model "
+            f"scripts were renamed in Sprint 2; available here: "
+            f"{', '.join(TEAM_MODELS)}."
+        ) from exc
     return getattr(module, func_name), module.MAX_EPOCHS, module.PATIENCE
 
 
