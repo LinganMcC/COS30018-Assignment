@@ -5,3 +5,7 @@ timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accura
 2026-09-22T16:08:59,cnn_vgg_deep_run1,"Deeper VGG-style (3 blocks, BatchNorm + Dropout)",0.001,128,18,0.5,0.996,0.9969,574.85,Deeper VGG (3 blocks); BN + dropout + LR-plateau; stopped at 18/30.
 2026-09-29T11:01:51,cnn_lenet_run1,LeNet-5 (modernised),0.001,128,22,0.0,0.9902,0.9909,33.56,Baseline; EarlyStopping stopped after 22/30 epochs.
 2026-09-29T11:03:08,cnn_shallow_run1,Shallow single-conv,0.001,128,26,0.0,0.9822,0.9803,27.15,Weak baseline; 1 conv layer only; stopped at 26/30.
+2026-09-30T06:24:47,mlp_simple_run2,"MLP (1024-512, BatchNorm + augmentation)",0.001,128,30,0.3,0.9910,0.9912,122.15,MLP 1024-512 + BN + shift/rotate aug; monitor val_loss; stopped at 30/30.
+2026-09-30T21:10:10,cnn_lenet_run1,LeNet-5 (modernised),0.001,128,26,0.0,0.9893,0.9915,56.47,Baseline; EarlyStopping stopped after 26/30 epochs.
+2026-09-30T21:45:31,cnn_resnet_run1,Small ResNet (residual blocks + BatchNorm),0.001,128,29,0.3,0.9960,0.9963,1700.89,Residual blocks + BN + dropout + LR-plateau; stopped at 29/30.
+2026-09-30T21:55:36,cnn_vgg_deep_run1,"Deeper VGG-style (3 blocks, BatchNorm + Dropout)",0.001,128,19,0.5,0.9958,0.9960,580.41,Deeper VGG (3 blocks); BN + dropout + LR-plateau; stopped at 19/30.
