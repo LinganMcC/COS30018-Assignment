@@ -1,10 +1,23 @@
-venv/
-__pycache__/
-*.pyc
-smoke_model.keras         
+# Datasets (regenerate with src/prepare_data.py and src/generate_number.py)
+data/raw/
+data/generated/
 ~/.keras/datasets/
-.vscode/
+
+# Scratch model files
+smoke_model.keras
+
+# Sprint 3 tuning outputs (each run's model is ~7 MB; only the frozen cnn_best.keras is committed)
 models/checkpoints/tuning/
 models/checkpoints/tuning_quick/
 models/experiments/tuning_quick/
-.pytest_cache/
+
+# Bulky per-image demo dumps (the summary CSVs ARE committed)
+reports/segmentation_demo/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+models/checkpoints/*.pkl
+reports/custom_demo/

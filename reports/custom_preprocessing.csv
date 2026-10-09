@@ -1,0 +1,9 @@
+config,images,correct,accuracy,selected
+otsu_mnist_box,70,59,0.8429,yes
+otsu_denoised_centered,70,57,0.8143,
+otsu,70,55,0.7857,
+otsu_denoised,70,55,0.7857,
+adaptive,70,43,0.6143,
+grayscale_only,70,38,0.5429,
+adaptive_mnist_box,70,28,0.4,
+grayscale_mnist_box,70,27,0.3857,

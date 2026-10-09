@@ -1,0 +1,9 @@
+config,description,cnn_mean,cnn_std,cnn_min,cnn_max,runs,epochs_mean,train_seconds_mean,ms_per_image
+otsu,Grayscale + Otsu binarization,0.967,0.0061,0.9577,0.973,5,16.6,10.2,0.006
+grayscale_only,Grayscale + resize only (no thresholding),0.9667,0.0048,0.96,0.9713,5,16.2,9.4,0.009
+adaptive,Grayscale + denoise + adaptive thresholding,0.9667,0.0034,0.9613,0.9703,5,17.6,10.8,0.013
+adaptive_mnist_box,Grayscale + denoise + adaptive + 20x20 MNIST box,0.9645,0.0033,0.962,0.9693,5,18.8,10.6,0.027
+grayscale_mnist_box,Grayscale + 20x20 MNIST box (no thresholding),0.9617,0.0034,0.9587,0.9653,5,12.4,7.7,0.027
+otsu_mnist_box,Grayscale + Otsu binarization + 20x20 MNIST box,0.9599,0.0047,0.953,0.9663,5,14.8,9.0,0.022
+otsu_denoised,Grayscale + median denoise + Otsu binarization,0.9592,0.0054,0.9517,0.9643,5,15.2,8.8,0.01
+otsu_denoised_centered,Grayscale + denoise + Otsu + centre of mass alignment,0.9558,0.0053,0.948,0.9603,5,15.6,9.8,0.013
