@@ -7,20 +7,30 @@ import pytest
 import tensorflow as tf
 
 from mnist_loader import load_mnist
-from cnn_shallow import build_shallow
+from cnn_lenet import build_lenet5
 from experiment_logger import log_run
 
 # Checkpoints are one level up: models/checkpoints/
 CHECKPOINTS = {
-    "shallow": Path(__file__).parent.parent / "checkpoints" / "cnn_shallow.keras",
-    "lenet":   Path(__file__).parent.parent / "checkpoints" / "cnn_lenet.keras",
-    "vgg":     Path(__file__).parent.parent / "checkpoints" / "cnn_vgg_small.keras",
+    "lenet":    Path(__file__).parent.parent / "checkpoints" / "cnn_lenet.keras",
+    "vgg_deep": Path(__file__).parent.parent / "checkpoints" / "cnn_vgg_deep.keras",
+    "resnet":   Path(__file__).parent.parent / "checkpoints" / "cnn_resnet.keras",
+    "mlp":      Path(__file__).parent.parent / "checkpoints" / "mlp_simple.keras",
+}
+
+# Script that trains each checkpoint (used in the skip message).
+TRAIN_SCRIPTS = {
+    "lenet": "cnn_lenet.py",
+    "vgg_deep": "cnn_vgg_deep.py",
+    "resnet": "cnn_resnet.py",
+    "mlp": "mlp_simple.py",
 }
 
 THRESHOLDS = {
-    "shallow": 0.95,
-    "lenet":   0.98,
-    "vgg":     0.99,
+    "lenet":    0.98,
+    "vgg_deep": 0.99,
+    "resnet":   0.99,
+    "mlp":      0.98,
 }
 
 
@@ -88,10 +98,10 @@ class TestMnistLoader:
             err_msg="Val split differs between two calls — seed not fixed")
 
 
-class TestShallowCNN:
+class TestLeNetCNN:
     @pytest.fixture(scope="class")
     def model(self):
-        return build_shallow()
+        return build_lenet5()
 
     def test_model_compiles(self, model):
         assert model.optimizer is not None, "Model has no optimizer — call compile()"
@@ -116,7 +126,7 @@ class TestShallowCNN:
         assert preds.min() >= 0.0
         assert preds.max() <= 1.0
 
-    def test_parameter_count_shallow_range(self, model):
+    def test_parameter_count_lenet_range(self, model):
         total = model.count_params()
         assert 30_000 <= total <= 150_000, \
             f"Unexpected param count {total:,} — check architecture"
@@ -142,7 +152,7 @@ class TestOneEpochSmoke:
         x_vmini = x_val[:128]
         y_vmini = y_val[:128]
 
-        model = build_shallow()
+        model = build_lenet5()
         history = model.fit(
             x_mini, y_mini,
             validation_data=(x_vmini, y_vmini),
@@ -161,40 +171,17 @@ def _load_test_data():
     return x_test, y_test
 
 
-@pytest.mark.skipif(
-    not CHECKPOINTS["shallow"].exists(),
-    reason="cnn_shallow.keras not found — run cnn_shallow.py first"
-)
-def test_shallow_quality_gate():
-    model = tf.keras.models.load_model(str(CHECKPOINTS["shallow"]))
+# Quality gates for the four models kept after Sprint 2. Each is skipped if
+# its checkpoint has not been trained yet on this machine.
+@pytest.mark.parametrize("name", list(CHECKPOINTS))
+def test_quality_gate(name):
+    if not CHECKPOINTS[name].exists():
+        pytest.skip(f"{CHECKPOINTS[name].name} not found - run {TRAIN_SCRIPTS[name]} first")
+    model = tf.keras.models.load_model(str(CHECKPOINTS[name]))
     x_test, y_test = _load_test_data()
     _, acc = model.evaluate(x_test, y_test, verbose=0)
-    assert acc >= THRESHOLDS["shallow"], \
-        f"Shallow CNN test accuracy {acc:.4f} is below threshold {THRESHOLDS['shallow']}"
-
-
-@pytest.mark.skipif(
-    not CHECKPOINTS["lenet"].exists(),
-    reason="cnn_lenet.keras not found — run cnn_lenet.py first"
-)
-def test_lenet_quality_gate():
-    model = tf.keras.models.load_model(str(CHECKPOINTS["lenet"]))
-    x_test, y_test = _load_test_data()
-    _, acc = model.evaluate(x_test, y_test, verbose=0)
-    assert acc >= THRESHOLDS["lenet"], \
-        f"LeNet test accuracy {acc:.4f} is below threshold {THRESHOLDS['lenet']}"
-
-
-@pytest.mark.skipif(
-    not CHECKPOINTS["vgg"].exists(),
-    reason="cnn_vgg_small.keras not found — run cnn_vgg_small.py first"
-)
-def test_vgg_quality_gate():
-    model = tf.keras.models.load_model(str(CHECKPOINTS["vgg"]))
-    x_test, y_test = _load_test_data()
-    _, acc = model.evaluate(x_test, y_test, verbose=0)
-    assert acc >= THRESHOLDS["vgg"], \
-        f"VGG-small test accuracy {acc:.4f} is below threshold {THRESHOLDS['vgg']}"
+    assert acc >= THRESHOLDS[name], \
+        f"{name} test accuracy {acc:.4f} is below threshold {THRESHOLDS[name]}"
 
 
 class TestExperimentLogger:

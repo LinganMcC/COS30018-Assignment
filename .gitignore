@@ -1,15 +1,3 @@
-# Virtual environments
-venv/
-env/
-.venv/
-
-# Python
-__pycache__/
-*.pyc
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-
 # Datasets (regenerate with src/prepare_data.py and src/generate_number.py)
 data/raw/
 data/generated/
@@ -17,6 +5,11 @@ data/generated/
 
 # Scratch model files
 smoke_model.keras
+
+# Sprint 3 tuning outputs (each run's model is ~7 MB; only the frozen cnn_best.keras is committed)
+models/checkpoints/tuning/
+models/checkpoints/tuning_quick/
+models/experiments/tuning_quick/
 
 # Bulky per-image demo dumps (the summary CSVs ARE committed)
 reports/segmentation_demo/

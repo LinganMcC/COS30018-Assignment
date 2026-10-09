@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "s3_A2_aug_light",
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.5,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9951666593551636,
+  "test_accuracy": 0.9965000152587891,
+  "robust_test_accuracy": 0.9937000274658203,
+  "epochs_run": 17,
+  "training_time_s": 511.8566355705261,
+  "num_params": 586282,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\s3_A2_aug_light.keras"
+}

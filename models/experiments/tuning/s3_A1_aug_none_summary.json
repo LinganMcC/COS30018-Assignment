@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "s3_A1_aug_none",
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "augmentation": "none",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.5,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9958333373069763,
+  "test_accuracy": 0.995199978351593,
+  "robust_test_accuracy": 0.9681000113487244,
+  "epochs_run": 24,
+  "training_time_s": 721.0070922374725,
+  "num_params": 586282,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\s3_A1_aug_none.keras"
+}

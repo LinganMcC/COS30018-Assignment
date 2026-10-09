@@ -1,0 +1,5 @@
+timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accuracy,test_accuracy,training_time_s,notes
+2026-10-09T12:51:20,s3_A1_aug_none,vgg_deep,0.001,128,24,0.5,0.9958,0.9952,721.01,dataset=mnist; aug=none; robust_acc=0.9681
+2026-10-09T12:59:57,s3_A2_aug_light,vgg_deep,0.001,128,17,0.5,0.9952,0.9965,511.86,dataset=mnist; aug=light; robust_acc=0.9937
+2026-10-09T13:07:45,s3_A3_aug_medium,vgg_deep,0.001,128,15,0.5,0.9940,0.9933,464.20,dataset=mnist; aug=medium; robust_acc=0.9938
+2026-10-09T13:13:05,s3_A4_aug_strong,vgg_deep,0.001,128,10,0.5,0.9933,0.9926,314.87,dataset=mnist; aug=strong; robust_acc=0.9931
