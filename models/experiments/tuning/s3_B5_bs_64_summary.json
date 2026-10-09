@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "s3_B5_bs_64",
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "dropout": 0.5,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9963333606719971,
+  "test_accuracy": 0.9962000250816345,
+  "robust_test_accuracy": 0.994700014591217,
+  "epochs_run": 19,
+  "training_time_s": 760.1986713409424,
+  "num_params": 586282,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\s3_B5_bs_64.keras"
+}

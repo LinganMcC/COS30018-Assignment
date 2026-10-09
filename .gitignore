@@ -1,7 +1,21 @@
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
 # Datasets (regenerate with src/prepare_data.py and src/generate_number.py)
 data/raw/
 data/generated/
 ~/.keras/datasets/
+data/symbols/
+data/downloads/
 
 # Scratch model files
 smoke_model.keras

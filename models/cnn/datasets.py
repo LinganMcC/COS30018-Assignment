@@ -83,8 +83,10 @@ def _load_mnist_splits() -> DatasetSplits:
 
 @register_dataset("mnist+symbols")
 def _load_mnist_symbols() -> DatasetSplits:
-    """Placeholder for the Sprint 4 extension dataset (digits + operators)."""
-    raise NotImplementedError(
-        "The 'mnist+symbols' dataset is not built yet (Sprint 4). It must return "
-        "DatasetSplits with label_names = DIGIT_LABELS + SYMBOL_LABELS, and the "
-        "symbol images must go through the same preprocessing as the digits.")
+    """MNIST digits + the six operator symbols from data/symbols/ (16 classes).
+
+    The work is done in symbols_data.py; it is imported here only when this
+    dataset is requested, so plain MNIST training does not need data/symbols/.
+    """
+    from symbols_data import load_mnist_symbols
+    return load_mnist_symbols(_load_mnist_splits())
