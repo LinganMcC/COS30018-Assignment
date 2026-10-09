@@ -1,0 +1,45 @@
+{
+  "comment": "Sprint 3 tuning grid. One-factor-at-a-time around the Sprint 2 VGG-deep baseline. Stage A picks the augmentation level; stage B tunes lr / dropout / batch size WITH that augmentation. After stage A, set stages.B.defaults.augmentation to the stage-A winner (by val accuracy) before running stage B.",
+  "defaults": {
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.5,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 42
+  },
+  "stages": {
+    "A": {
+      "comment": "Augmentation sweep (everything else = Sprint 2 baseline).",
+      "runs": [
+        {"run_id": "s3_A1_aug_none",   "augmentation": "none"},
+        {"run_id": "s3_A2_aug_light",  "augmentation": "light"},
+        {"run_id": "s3_A3_aug_medium", "augmentation": "medium"},
+        {"run_id": "s3_A4_aug_strong", "augmentation": "strong"}
+      ]
+    },
+    "B": {
+      "comment": "Vary one hyperparameter at a time. Baseline for this stage = stage-A winner.",
+      "defaults": {"augmentation": "medium"},
+      "runs": [
+        {"run_id": "s3_B1_lr_3e-4",   "learning_rate": 0.0003},
+        {"run_id": "s3_B2_lr_3e-3",   "learning_rate": 0.003},
+        {"run_id": "s3_B3_drop_0.3",  "dropout": 0.3},
+        {"run_id": "s3_B4_drop_0.7",  "dropout": 0.7},
+        {"run_id": "s3_B5_bs_64",     "batch_size": 64},
+        {"run_id": "s3_B6_bs_256",    "batch_size": 256}
+      ]
+    },
+    "C": {
+      "comment": "Optional: does augmentation help the other three models too? (ResNet is slow on CPU, ~25 min.)",
+      "defaults": {"augmentation": "medium"},
+      "runs": [
+        {"run_id": "s3_C1_lenet_aug",  "arch": "lenet",  "dropout": 0.0},
+        {"run_id": "s3_C2_resnet_aug", "arch": "resnet", "dropout": 0.3},
+        {"run_id": "s3_C3_mlp_aug",    "arch": "mlp",    "dropout": 0.3}
+      ]
+    }
+  }
+}

@@ -4,3 +4,7 @@ __pycache__/
 smoke_model.keras         
 ~/.keras/datasets/
 .vscode/
+models/checkpoints/tuning/
+models/checkpoints/tuning_quick/
+models/experiments/tuning_quick/
+.pytest_cache/
