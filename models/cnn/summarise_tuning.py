@@ -11,11 +11,29 @@ import matplotlib.pyplot as plt
 
 MODELS_DIR = Path(__file__).resolve().parent.parent
 
+# Runs are only ever compared with runs on the SAME dataset: a 16-class
+# extension run and a 10-class digit run are different tasks with different
+# test sets. Each dataset gets its own table, chart and frozen model.
+#   dataset -> (prefix for table/chart, name of the frozen model)
+OUTPUT_NAMES = {
+    "mnist": ("tuning", "cnn_best"),
+    "mnist+symbols": ("extension", "ext_best"),
+}
 
-def load_summaries(root: Path = MODELS_DIR) -> List[dict]:
-    """Load all run summaries, sorted by run_id."""
+
+def output_names(dataset: str) -> tuple:
+    slug = dataset.replace("+", "_")
+    return OUTPUT_NAMES.get(dataset, (f"tuning_{slug}", f"{slug}_best"))
+
+
+def load_summaries(root: Path = MODELS_DIR, dataset: Optional[str] = None) -> List[dict]:
+    """Load run summaries sorted by run_id; only one dataset if given."""
     files = sorted((root / "experiments" / "tuning").glob("*_summary.json"))
-    return [json.loads(f.read_text()) for f in files]
+    summaries = [json.loads(f.read_text()) for f in files]
+    if dataset is not None:
+        summaries = [s for s in summaries
+                     if s["config"].get("dataset", "mnist") == dataset]
+    return summaries
 
 
 def pick_best(summaries: List[dict]) -> Optional[dict]:
@@ -44,7 +62,8 @@ def markdown_table(summaries: List[dict], best: Optional[dict]) -> str:
     return header + "\n".join(rows) + "\n"
 
 
-def comparison_chart(summaries: List[dict], out_path: Path) -> None:
+def comparison_chart(summaries: List[dict], out_path: Path,
+                     title: str = "Sprint 3 tuning runs") -> None:
     """Grouped bars: val / test / shifted-test accuracy for every run."""
     names = [s["config"]["run_id"] for s in summaries]
     series = [("Val", "val_accuracy"), ("Test", "test_accuracy"),
@@ -59,7 +78,7 @@ def comparison_chart(summaries: List[dict], out_path: Path) -> None:
     ax.set_ylabel("Accuracy (%)")
     lowest = min(min(s[k] for _, k in series) for s in summaries) * 100
     ax.set_ylim(max(0, lowest - 2), 100)
-    ax.set_title("Sprint 3 tuning runs")
+    ax.set_title(title)
     ax.legend()
     ax.grid(True, axis="y", alpha=0.3)
     fig.tight_layout()
@@ -68,38 +87,43 @@ def comparison_chart(summaries: List[dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-def freeze(best: dict, root: Path = MODELS_DIR) -> Path:
-    """Copy the winning checkpoint + label map to checkpoints/cnn_best.*"""
+def freeze(best: dict, root: Path = MODELS_DIR, name: str = "cnn_best") -> Path:
+    """Copy the winning checkpoint + label map to checkpoints/<name>.*"""
     src = Path(best["checkpoint"])
-    dst = root / "checkpoints" / "cnn_best.keras"
+    dst = root / "checkpoints" / f"{name}.keras"
     shutil.copy2(src, dst)
     shutil.copy2(src.with_suffix(".labels.json"),
-                 root / "checkpoints" / "cnn_best.labels.json")
-    (root / "checkpoints" / "cnn_best.source.json").write_text(json.dumps(
+                 root / "checkpoints" / f"{name}.labels.json")
+    (root / "checkpoints" / f"{name}.source.json").write_text(json.dumps(
         {"source_run": best["config"]["run_id"], "summary": best}, indent=2))
     return dst
 
 
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description="Summarise Sprint 3 tuning runs.")
+    p.add_argument("--dataset", default="mnist",
+                   help="which runs to compare: mnist (digits) or mnist+symbols (extension)")
     p.add_argument("--freeze", action="store_true",
-                   help="Copy the best run to checkpoints/cnn_best.keras")
+                   help="copy the best run to checkpoints/cnn_best.keras "
+                        "(ext_best.keras for mnist+symbols)")
     args = p.parse_args(argv)
 
-    summaries = load_summaries()
+    summaries = load_summaries(dataset=args.dataset)
     if not summaries:
-        print("No runs found in experiments/tuning/ - run trainer.py first.")
+        print(f"No '{args.dataset}' runs found in experiments/tuning/ - run trainer.py first.")
         return
     best = pick_best(summaries)
+    prefix, model_name = output_names(args.dataset)
 
     table = markdown_table(summaries, best)
-    (MODELS_DIR / "experiments" / "tuning_table.md").write_text(table)
-    comparison_chart(summaries, MODELS_DIR / "experiments" / "tuning_comparison.png")
+    (MODELS_DIR / "experiments" / f"{prefix}_table.md").write_text(table)
+    comparison_chart(summaries, MODELS_DIR / "experiments" / f"{prefix}_comparison.png",
+                     title=f"Runs on '{args.dataset}'")
     print(table)
     print(f"Best by val accuracy: {best['config']['run_id']}")
 
     if args.freeze:
-        print(f"Frozen to {freeze(best)}")
+        print(f"Frozen to {freeze(best, name=model_name)}")
 
 
 if __name__ == "__main__":

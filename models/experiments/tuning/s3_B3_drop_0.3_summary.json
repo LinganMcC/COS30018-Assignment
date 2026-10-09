@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "s3_B3_drop_0.3",
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.3,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9963333606719971,
+  "test_accuracy": 0.9958999752998352,
+  "robust_test_accuracy": 0.9932000041007996,
+  "epochs_run": 19,
+  "training_time_s": 639.4085063934326,
+  "num_params": 586282,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\s3_B3_drop_0.3.keras"
+}

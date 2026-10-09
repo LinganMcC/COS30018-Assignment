@@ -22,7 +22,7 @@
     },
     "B": {
       "comment": "Vary one hyperparameter at a time. Baseline for this stage = stage-A winner.",
-      "defaults": {"augmentation": "medium"},
+      "defaults": {"augmentation": "light"},
       "runs": [
         {"run_id": "s3_B1_lr_3e-4",   "learning_rate": 0.0003},
         {"run_id": "s3_B2_lr_3e-3",   "learning_rate": 0.003},

@@ -3,3 +3,11 @@ timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accura
 2026-10-09T12:59:57,s3_A2_aug_light,vgg_deep,0.001,128,17,0.5,0.9952,0.9965,511.86,dataset=mnist; aug=light; robust_acc=0.9937
 2026-10-09T13:07:45,s3_A3_aug_medium,vgg_deep,0.001,128,15,0.5,0.9940,0.9933,464.20,dataset=mnist; aug=medium; robust_acc=0.9938
 2026-10-09T13:13:05,s3_A4_aug_strong,vgg_deep,0.001,128,10,0.5,0.9933,0.9926,314.87,dataset=mnist; aug=strong; robust_acc=0.9931
+2026-10-09T16:18:14,s3_B1_lr_3e-4,vgg_deep,0.0003,128,19,0.5,0.9950,0.9957,616.84,dataset=mnist; aug=light; robust_acc=0.9931
+2026-10-09T16:27:44,s3_B2_lr_3e-3,vgg_deep,0.003,128,17,0.5,0.9955,0.9961,565.00,dataset=mnist; aug=light; robust_acc=0.9935
+2026-10-09T16:38:29,s3_B3_drop_0.3,vgg_deep,0.001,128,19,0.3,0.9963,0.9959,639.41,dataset=mnist; aug=light; robust_acc=0.9932
+2026-10-09T16:54:25,s3_B4_drop_0.7,vgg_deep,0.001,128,25,0.7,0.9958,0.9961,949.28,dataset=mnist; aug=light; robust_acc=0.9952
+2026-10-09T17:07:11,s3_B5_bs_64,vgg_deep,0.001,64,19,0.5,0.9963,0.9962,760.20,dataset=mnist; aug=light; robust_acc=0.9947
+2026-10-09T17:25:07,s3_B6_bs_256,vgg_deep,0.001,256,24,0.5,0.9960,0.9966,1071.27,dataset=mnist; aug=light; robust_acc=0.9942
+2026-10-09T18:05:04,ext_v1,vgg_deep,0.001,128,17,0.5,0.9944,0.9949,851.91,dataset=mnist+symbols; aug=light; robust_acc=0.9896
+2026-10-09T18:28:39,ext_v2,vgg_deep,0.001,64,22,0.5,0.9957,0.9957,1294.22,dataset=mnist+symbols; aug=light; robust_acc=0.9917

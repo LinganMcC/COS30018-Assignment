@@ -86,9 +86,9 @@ def test_unknown_preset_rejected():
 
 #  datasets
 
-def test_symbols_dataset_is_placeholder_for_now():
-    with pytest.raises(NotImplementedError):
-        load_dataset("mnist+symbols")
+def test_symbols_dataset_is_registered():
+    from datasets import available_datasets
+    assert "mnist+symbols" in available_datasets()
 
 
 def test_label_ordering_agreed():
@@ -151,7 +151,9 @@ def test_sprint3_grid_parses_with_correct_precedence():
     assert len(ids) == len(set(ids)), "run_ids must be unique"
     by_id = {c.run_id: c for c in configs}
     assert by_id["s3_A1_aug_none"].augmentation == "none"
-    assert by_id["s3_B1_lr_3e-4"].augmentation == "medium"   # stage default
+    spec = json.loads(grid.read_text())
+    stage_b_aug = spec["stages"]["B"]["defaults"]["augmentation"]
+    assert by_id["s3_B1_lr_3e-4"].augmentation == stage_b_aug   # stage default
     assert by_id["s3_B1_lr_3e-4"].learning_rate == 0.0003    # run override
     assert by_id["s3_B1_lr_3e-4"].arch == "vgg_deep"         # file default
     for c in configs:  # every config must reference real presets / archs
@@ -183,3 +185,24 @@ def test_freeze_copies_checkpoint_and_labels(trained):
     freeze(summary, root)
     assert (root / "checkpoints/cnn_best.keras").exists()
     assert (root / "checkpoints/cnn_best.labels.json").exists()
+
+
+def test_summaries_are_separated_by_dataset(trained, tmp_path):
+    from summarise_tuning import output_names
+    _, _, root = trained
+    other = json.loads((root / "experiments/tuning/t_unit_summary.json").read_text())
+    other["config"]["dataset"] = "mnist+symbols"
+    other["config"]["run_id"] = "ext_x"
+    (root / "experiments/tuning/ext_x_summary.json").write_text(json.dumps(other))
+    assert [s["config"]["run_id"] for s in load_summaries(root, "mnist")] == ["t_unit"]
+    assert [s["config"]["run_id"] for s in load_summaries(root, "mnist+symbols")] == ["ext_x"]
+    assert len(load_summaries(root)) == 2
+    assert output_names("mnist") == ("tuning", "cnn_best")
+    assert output_names("mnist+symbols") == ("extension", "ext_best")
+
+
+def test_extension_freeze_does_not_touch_cnn_best(trained):
+    summary, _, root = trained
+    freeze(summary, root, name="ext_best")
+    assert (root / "checkpoints/ext_best.keras").exists()
+    assert not (root / "checkpoints/cnn_best.keras").exists()
