@@ -30,7 +30,7 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 
 ---
 
-## 2. Status (as of 9 Oct, Sprint 3)
+## 2. Status (as of 11 Oct, end of Sprint 3)
 
 **Done**
 
@@ -39,13 +39,18 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 - [x] Real handwritten test photos in `data/custom_samples/`
 - [x] 4 recognition models trained on MNIST: LeNet-5, VGG-deep, ResNet, MLP
 - [x] Config-driven trainer with data augmentation (`models/cnn/trainer.py`)
-- [x] Tuning stage A (augmentation sweep) – results in `models/experiments/tuning/`
+- [x] Tuning stage A (augmentation) and stage B (learning rate / dropout / batch size)
+- [x] Final digit CNN frozen: `models/checkpoints/cnn_best.keras` (deeper VGG, batch 64, 99.62 % test)
+- [x] Extension dataset: operator symbols from HASYv2 + Kaggle (`src/download_symbols.py`)
+- [x] First 16-class model (digits + `+ - * / ( )`): `models/checkpoints/ext_best.keras`
 
 **Still open**
 
-- [ ] Tuning stage B (learning rate / dropout / batch size), then freeze `cnn_best.keras` – Thien
+- [ ] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison – Thien
+- [ ] Per-symbol accuracy and confusion matrix for `ext_best.keras` – Thien + Liam
 - [ ] GUI still uses placeholder functions; `predict_digits` returns random digits – Russell
-- [ ] Extension: operator symbol images (+ − × ÷ ( )) not collected yet – Russell + team
+- [ ] Segmentation of operators (see section 8) – John
+- [ ] Team's own handwritten operator samples for real-world testing – Russell + team
 
 Run `python src/show_progress.py` for a live DONE/TODO list.
 
@@ -163,19 +168,52 @@ python trainer.py --grid configs/sprint3_tuning.json --stage B
 # Quick 2-epoch check that everything works (nothing is logged)
 python trainer.py --grid configs/sprint3_tuning.json --stage B --quick
 
-# Results table + chart; --freeze copies the best run to checkpoints/cnn_best.keras
-python summarise_tuning.py --freeze
-
-# Overlay the training curves of the four Sprint 2 models
-python compare_models.py
+# Results table + chart (add --freeze to copy the best run to checkpoints/cnn_best.keras)
+python summarise_tuning.py
 ```
+
+`--freeze` picks the best run by validation accuracy across **all** digit runs, so
+only use it when you mean to replace the frozen model.
+
+**Comparing the four models** – two comparisons, both worth showing in the report:
+
+```bash
+# Controlled: every model with the same shared settings (the Sprint 2 runs)
+python compare_models.py
+
+# Each model at its best: tuned VGG + the per-model runs below
+python trainer.py --grid configs/sprint3_per_model.json
+python compare_models.py --set best
+```
+
+The first gives `compare_accuracy.png` / `compare_loss.png`; the second gives
+`compare_best_accuracy.png` / `compare_best_loss.png` and `compare_best_table.md`.
+Never mix the two (e.g. tuned VGG next to untuned LeNet) in one table.
+
+**Extension: digits + operator symbols (16 classes)**
+
+```bash
+# From the repo root, once: download the symbols into data/symbols/ (not committed)
+python src/download_symbols.py --check
+python src/download_symbols.py --clean
+
+# From models/cnn/: train, then summarise extension runs separately from digit runs
+python trainer.py --dataset mnist+symbols --arch vgg_deep --aug light --batch-size 64 --run-id ext_v2
+python summarise_tuning.py --dataset mnist+symbols --freeze     # -> checkpoints/ext_best.keras
+```
+
+The Kaggle part is a manual download: extract `data.rar` into
+`data/downloads/xainano/` and the script finds it automatically.
 
 **Where results go**
 
 - `models/experiments/tuning_log.csv` – one row per tuning run
 - `models/experiments/tuning/` – curves and a summary for every run
 - `models/experiments/experiment_log.csv` – the Sprint 2 model runs
-- `models/checkpoints/` – trained models (per-run tuning models are not committed; too large)
+- `models/experiments/tuning_table.md`, `extension_table.md` – digit and extension runs, kept separate
+- `models/checkpoints/cnn_best.keras`, `ext_best.keras` – the frozen models, each with a
+  `.labels.json` (class names) and `.source.json` (which run it came from)
+- Per-run tuning models in `models/checkpoints/tuning/` are not committed (too large)
 
 **Two accuracy numbers are reported for every run**
 
@@ -231,18 +269,15 @@ labels = json.load(open("models/checkpoints/cnn_best.labels.json"))["label_names
 - **GUI (Russell):** `gui.py` has the full layout, but `train_model` and
   `predict_digits` are still placeholders. Swap in `segment_digits`,
   `preprocess` and a loaded model as shown in section 7.
-- **Which model to load:** `demo_one.py` and `evaluate_custom.py` currently load
-  `cnn_lenet.keras`. Once `cnn_best.keras` is frozen, point them at that instead.
+- **Which model to load:** `cnn_best.keras` is the frozen digit model. `demo_one.py`
+  and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it.
 - **Extension – segmentation:** `segmentation.py` drops any box shorter than 15 %
   of the image height (`min_height_ratio=0.15`). That also drops a minus sign and
   the dots of ÷, and ÷ splits into three pieces. Needs a fix before the
   extension can work.
-- **Extension – data:** the trainer already supports 16 classes. The
-  `mnist+symbols` dataset slot in `models/cnn/datasets.py` is waiting for the
-  operator images.
-- **Duplicate log:** `experiments/experiment_log.csv` (repo root) is an old
-  duplicate of `models/experiments/experiment_log.csv`. Its rows should be merged
-  into the `models/` one, and the root file deleted.
+- **Extension – model (Russell's parser):** `ext_best.keras` outputs 16 classes. Read
+  the class names from `ext_best.labels.json`; classes 10–15 are `+ - * / ( )`,
+  where `*` covers both × and the asterisk, and `/` means ÷.
 
 ---
 

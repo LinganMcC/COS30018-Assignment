@@ -1,3 +1,8 @@
+"""Download the six operator symbols (+ - * / ( )) from HASYv2 and Kaggle.
+
+Run from the repo root:  python src/download_symbols.py [--check] [--clean]
+Images go to data/symbols/ (gitignored) unchanged; preprocessing happens in training.
+"""
 import argparse
 import csv
 import io
@@ -13,8 +18,8 @@ OUT_DIR = ROOT / "data" / "symbols"
 CACHE_DIR = ROOT / "data" / "downloads"
 MANIFEST_FIELDS = ["file", "label", "folder", "source", "writer"]
 
-HASY_RECORD_API = "https://zenodo.org/api/records/259444"
-KAGGLE_DATASET = "xainano/handwrittenmathsymbols"
+HASY_RECORD_API = "https://zenodo.org/api/records/259444"   # HASYv2: no login, has writer ids
+KAGGLE_DATASET = "xainano/handwrittenmathsymbols"         # CROHME symbols: many more images
 KAGGLE_LOCAL_DIR = CACHE_DIR / "xainano"     # where a manual download is looked for
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp"}
 
@@ -238,6 +243,8 @@ def main(argv=None) -> None:
             if not args.check:
                 rows += extract_hasy(archive, found, args.out)
 
+    # "auto" uses BOTH sources for every class: HASYv2 alone has <120 images of + and -
+    # and no brackets, while Kaggle adds volume and different writers.
     if args.source in ("auto", "kaggle"):
         root = args.kaggle_dir
         if root is None and KAGGLE_LOCAL_DIR.exists():

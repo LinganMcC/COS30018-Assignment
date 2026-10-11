@@ -1,0 +1,25 @@
+{
+  "comment": "Per-model tuning: give LeNet, ResNet and MLP their own best settings (the deeper VGG was already tuned in sprint3_tuning.json, stages A and B). Kept separate so the original Sprint 3 grid stays an unchanged record. Evidence for each change is in the Sprint 3 logs: ResNet and MLP hit the 30-epoch cap while still improving; LeNet overfits (train ~100 %, val ~98.9 %) with no dropout or augmentation. Light augmentation is used because it won stage A.",
+  "defaults": {
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "max_epochs": 50,
+    "patience": 8,
+    "seed": 42
+  },
+  "stages": {
+    "P": {
+      "comment": "Each model at its best. Compare with the same-settings runs in models/experiments/experiment_log.csv (30 Sep rows).",
+      "runs": [
+        {"run_id": "pm_lenet_best",  "arch": "lenet",  "dropout": 0.3,
+         "comment": "was: no dropout, no augmentation, 30 epochs - overfitted"},
+        {"run_id": "pm_resnet_best", "arch": "resnet", "dropout": 0.3,
+         "comment": "was: stopped at 29/30 epochs while still improving; slow (~45-50 min on CPU)"},
+        {"run_id": "pm_mlp_best",    "arch": "mlp",    "dropout": 0.3,
+         "comment": "was: ran 30/30 epochs, best at epoch 25 - more epochs needed"}
+      ]
+    }
+  }
+}
