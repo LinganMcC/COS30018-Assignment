@@ -1,5 +1,8 @@
 | Run | Arch | Aug | LR | Batch | Dropout | Epochs | Val acc | Test acc | Shifted-test acc | Time (s) |
 |---|---|---|---|---|---|---|---|---|---|---|
+| pm_lenet_best | lenet | light | 0.001 | 128 | 0.3 | 30 | 99.17% | 99.29% | 98.09% | 108 |
+| pm_mlp_best | mlp | light | 0.001 | 128 | 0.3 | 31 | 98.98% | 98.99% | 96.89% | 107 |
+| pm_resnet_best | resnet | light | 0.001 | 128 | 0.3 | 31 | 99.60% | 99.57% | 99.54% | 1895 |
 | s3_A1_aug_none | vgg_deep | none | 0.001 | 128 | 0.5 | 24 | 99.58% | 99.52% | 96.81% | 721 |
 | s3_A2_aug_light | vgg_deep | light | 0.001 | 128 | 0.5 | 17 | 99.52% | 99.65% | 99.37% | 512 |
 | s3_A3_aug_medium | vgg_deep | medium | 0.001 | 128 | 0.5 | 15 | 99.40% | 99.33% | 99.38% | 464 |
