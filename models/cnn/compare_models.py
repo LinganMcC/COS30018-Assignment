@@ -1,11 +1,9 @@
-"""Compare the four final models on one loss chart and one accuracy chart.
+"""Compare the four final models on one accuracy and one loss chart.
 
-Each model script saves its per-epoch Keras history to
-models/experiments/<name>_history.json. This script overlays them so the
-models can be compared on the same axes (validation = solid, train = dashed).
-
-Run from models/cnn/:  python compare_models.py
+Run from models/cnn/:  python compare_models.py             (same settings for all)
+                       python compare_models.py --set best   (each model's best run)
 """
+import argparse
 import json
 from pathlib import Path
 
@@ -13,26 +11,63 @@ import matplotlib.pyplot as plt
 
 EXP_DIR = Path(__file__).parent.parent / "experiments"
 
-# Fixed colour per model (colour-blind-checked categorical order), so a model
-# keeps the same colour in every figure of the report.
+# Controlled comparison: the Sprint 2 run of each model script, same shared settings.
+# Colours are fixed per model (colour-blind-checked) so a model looks the same in every figure.
 MODELS = [
     ("mlp_simple",   "MLP (simple)",   "#2a78d6"),
     ("cnn_lenet",    "LeNet-5",        "#eb6834"),
     ("cnn_resnet",   "ResNet (small)", "#1baf7a"),
     ("cnn_vgg_deep", "VGG (deep)",     "#eda100"),
 ]
+
+# Each model at its best: VGG = Sprint 3 tuning winner, the rest from
+# configs/sprint3_per_model.json. Paths are relative to EXP_DIR.
+BEST_MODELS = [
+    ("tuning/pm_mlp_best",    "MLP (simple)",   "#2a78d6"),
+    ("tuning/pm_lenet_best",  "LeNet-5",        "#eb6834"),
+    ("tuning/pm_resnet_best", "ResNet (small)", "#1baf7a"),
+    ("tuning/s3_B5_bs_64",    "VGG (deep)",     "#eda100"),
+]
+
+# Which models, which run they come from, and where the output goes.
+SETS = {
+    "same": dict(models=MODELS, prefix="compare", title="4 final models",
+                 hint="run the model's script (e.g. cnn_lenet.py)"),
+    "best": dict(models=BEST_MODELS, prefix="compare_best",
+                 title="4 final models, each at its best settings",
+                 hint="run: python trainer.py --grid configs/sprint3_per_model.json"),
+}
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
-def load_histories():
+def load_histories(models=MODELS, hint="run the model's script first"):
     hists = {}
-    for key, label, colour in MODELS:
+    for key, label, colour in models:
         path = EXP_DIR / f"{key}_history.json"
         if not path.exists():
-            print(f"[skip] {path.name} not found - run {key}.py first")
+            print(f"[skip] {path.name} not found - {hint}")
             continue
         hists[key] = (label, colour, json.loads(path.read_text()))
     return hists
+
+
+def best_table(models=BEST_MODELS) -> str:
+    """Markdown table from the trainer's summary files (best-settings runs)."""
+    lines = ["| Model | Run | Aug | Dropout | Batch | Epochs | Val acc | Test acc | "
+             "Shifted-test acc | Time (s) |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    for key, label, _ in models:
+        path = EXP_DIR / f"{key}_summary.json"
+        if not path.exists():
+            continue
+        s = json.loads(path.read_text())
+        c = s["config"]
+        lines.append(
+            f"| {label} | {c['run_id']} | {c['augmentation']} | {c['dropout']} | "
+            f"{c['batch_size']} | {s['epochs_run']} | {s['val_accuracy']*100:.2f}% | "
+            f"{s['test_accuracy']*100:.2f}% | {s['robust_test_accuracy']*100:.2f}% | "
+            f"{s['training_time_s']:.0f} |")
+    return "\n".join(lines) + "\n"
 
 
 def style(ax, title, ylabel):
@@ -103,21 +138,33 @@ def plot_metric(hists, train_key, val_key, title, ylabel, out_name,
     print(f"Saved {out}")
 
 
-def main():
-    hists = load_histories()
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Compare the four final models.")
+    parser.add_argument("--set", choices=list(SETS), default="same",
+                        help="same = controlled comparison (Sprint 2 runs), "
+                             "best = each model at its best settings")
+    args = parser.parse_args(argv)
+    cfg = SETS[args.set]
+
+    hists = load_histories(cfg["models"], cfg["hint"])
     if not hists:
         return
     plot_metric(hists, "loss", "val_loss",
-                "Loss per epoch - 4 final models", "Cross-entropy loss (log scale)",
-                "compare_loss.png", best=min, log_y=True)
+                f"Loss per epoch - {cfg['title']}", "Cross-entropy loss (log scale)",
+                f"{cfg['prefix']}_loss.png", best=min, log_y=True)
     plot_metric(hists, "accuracy", "val_accuracy",
-                "Accuracy per epoch - 4 final models", "Accuracy",
-                "compare_accuracy.png", best=max, ylim=(0.95, 1.0005), fmt="{:.2%}")
+                f"Accuracy per epoch - {cfg['title']}", "Accuracy",
+                f"{cfg['prefix']}_accuracy.png", best=max, ylim=(0.95, 1.0005), fmt="{:.2%}")
 
     print("\nBest validation accuracy / min validation loss:")
     for key, (label, _, h) in hists.items():
         print(f"  {label:15s} val_acc={max(h['val_accuracy']):.4f}  "
               f"val_loss={min(h['val_loss']):.4f}  epochs={len(h['val_loss'])}")
+
+    if args.set == "best":
+        table = best_table(cfg["models"])
+        (EXP_DIR / "compare_best_table.md").write_text(table)
+        print("\n" + table)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "pm_lenet_best",
+    "arch": "lenet",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.3,
+    "max_epochs": 50,
+    "patience": 8,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9916666746139526,
+  "test_accuracy": 0.992900013923645,
+  "robust_test_accuracy": 0.98089998960495,
+  "epochs_run": 30,
+  "training_time_s": 108.2432131767273,
+  "num_params": 61706,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\pm_lenet_best.keras"
+}

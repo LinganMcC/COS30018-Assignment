@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "pm_resnet_best",
+    "arch": "resnet",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.3,
+    "max_epochs": 50,
+    "patience": 8,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9959999918937683,
+  "test_accuracy": 0.9957000017166138,
+  "robust_test_accuracy": 0.9954000115394592,
+  "epochs_run": 31,
+  "training_time_s": 1894.7031645774841,
+  "num_params": 170794,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\pm_resnet_best.keras"
+}

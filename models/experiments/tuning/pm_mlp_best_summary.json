@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "pm_mlp_best",
+    "arch": "mlp",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.3,
+    "max_epochs": 50,
+    "patience": 8,
+    "seed": 42,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9898333549499512,
+  "test_accuracy": 0.9898999929428101,
+  "robust_test_accuracy": 0.9689000248908997,
+  "epochs_run": 31,
+  "training_time_s": 106.80233359336853,
+  "num_params": 1338378,
+  "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\pm_mlp_best.keras"
+}
