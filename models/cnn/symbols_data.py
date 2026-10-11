@@ -1,3 +1,7 @@
+"""MNIST digits + operator symbols from data/symbols/ as one 16-class dataset.
+
+Labels 0-9 are digits, 10-15 are + - * / ( ). Used by load_dataset("mnist+symbols").
+"""
 from __future__ import annotations
 
 import csv
@@ -123,6 +127,8 @@ def load_symbol_images(symbols_dir: Path = SYMBOLS_DIR,
     rows = read_manifest(symbols_dir)
     stat = manifest.stat()
     key = f"{CACHE_VERSION}-{stat.st_size}-{int(stat.st_mtime)}-{config}"
+    # Preprocessing ~95k images is slow, so the result is cached; the key changes
+    # (and the cache is rebuilt) whenever the manifest is regenerated.
     cache = symbols_dir / f"_cache_{config}.npz"
     if use_cache and cache.exists():
         with np.load(cache, allow_pickle=False) as data:
@@ -139,7 +145,7 @@ def load_symbol_images(symbols_dir: Path = SYMBOLS_DIR,
         if img is None:
             unreadable += 1
             continue
-        images.append(preprocess(img))
+        images.append(preprocess(img))   # same preprocessing as real handwriting
         labels.append(row["label"])
         sources.append(row.get("source", ""))
     if unreadable:
@@ -156,12 +162,15 @@ def load_symbol_images(symbols_dir: Path = SYMBOLS_DIR,
 
 def cap_class(idx: np.ndarray, sources: np.ndarray | None, limit: int,
               rng: np.random.Generator) -> np.ndarray:
+    """Pick at most `limit` indices, keeping every non-Kaggle image first."""
     if sources is None:
         return rng.permutation(idx)[:limit]
     is_bulk = sources[idx] == BULK_SOURCE
+    # HASYv2 (and later the team's samples) add writers Kaggle doesn't have; a
+    # plain random cap would drop most of them, so they are kept and Kaggle fills the rest.
     keep = rng.permutation(idx[~is_bulk])[:limit]
     fill = rng.permutation(idx[is_bulk])[:max(0, limit - len(keep))]
-    return rng.permutation(np.concatenate([keep, fill]))
+    return rng.permutation(np.concatenate([keep, fill]))   # shuffle so the split stays random
 
 
 def split_symbols(x: np.ndarray, labels: np.ndarray, seed: int = 42,
@@ -181,11 +190,13 @@ def split_symbols(x: np.ndarray, labels: np.ndarray, seed: int = 42,
         if len(idx) == 0:
             raise ValueError(f"No images for symbol '{label}' - check data/symbols/.")
         idx = cap_class(idx, sources, max_per_class, rng)
+        # Split BEFORE balancing, so a repeated image can never land in val/test too.
         n_val = max(1, int(round(len(idx) * SPLIT[1])))
         n_test = max(1, int(round(len(idx) * SPLIT[2])))
         test, val, train = idx[:n_test], idx[n_test:n_test + n_val], idx[n_test + n_val:]
         n_unique = len(train)
-        if len(train) < min_train_per_class:   # repeat small classes (train only)
+        # Repeat small classes (train only); augmentation makes each repeat differ.
+        if len(train) < min_train_per_class:
             extra = rng.choice(train, size=min_train_per_class - len(train), replace=True)
             train = np.concatenate([train, extra])
         class_id = len(DIGIT_LABELS) + offset
@@ -229,6 +240,8 @@ def load_mnist_symbols(mnist: DatasetSplits, symbols_dir: Path = SYMBOLS_DIR,
                        seed: int = 42) -> DatasetSplits:
     """The full pipeline used by datasets.load_dataset('mnist+symbols')."""
     x, labels, sources = load_symbol_images(symbols_dir, return_sources=True)
+    # Make symbols look like MNIST (bright, 2-3 px strokes) so the model learns
+    # shapes, not "thin grey stroke = symbol".
     x = normalise_brightness(x)
     x, _ = match_stroke_width(x, mnist.x_train)
     parts = split_symbols(x, labels, seed=seed, sources=sources)
