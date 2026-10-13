@@ -38,40 +38,10 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from preprocessing import CONFIGS, SELECTED_CONFIG, preprocess
 from segmentation import METHODS as CLASSICAL, SELECTED_METHOD, annotate
+from test_set import SAMPLES, load_digits, load_numbers
 
-SAMPLES = ROOT / "data" / "custom_samples"
 REPORTS = ROOT / "reports"
-IMAGE_TYPES = {".png", ".jpg", ".jpeg"}
 CNN_CHECKPOINT = ROOT / "models" / "checkpoints" / "cnn_lenet.keras"
-
-
-# ---------------------------------------------------------------------------
-# Loading
-# ---------------------------------------------------------------------------
-
-def load_samples(folder: Path, single_digit: bool) -> list[tuple[str, np.ndarray, str]]:
-    """Return (filename, image, label). The label is the filename before '_'."""
-    if not folder.exists():
-        return []
-    heic = sorted(p.name for p in folder.iterdir() if p.suffix.lower() == ".heic")
-    if heic:
-        print(f"  ! {len(heic)} HEIC file(s) in {folder.name}/ cannot be read by OpenCV. "
-              f"Export them as JPG. e.g. {heic[0]}")
-
-    samples = []
-    for path in sorted(folder.iterdir()):
-        if path.suffix.lower() not in IMAGE_TYPES:
-            continue
-        label = path.stem.split("_")[0]
-        if not label.isdigit() or (single_digit and len(label) != 1):
-            print(f"  ! skipped {path.name}: filename must start with the label, e.g. 3_01.jpg")
-            continue
-        image = cv2.imread(str(path))
-        if image is None:
-            print(f"  ! skipped {path.name}: could not be read")
-            continue
-        samples.append((path.name, image, label))
-    return samples
 
 
 # ---------------------------------------------------------------------------
@@ -237,8 +207,8 @@ def main() -> None:
 
     print("Evaluation on real handwriting")
     print("=" * 66)
-    digits = load_samples(SAMPLES / "digits", single_digit=True)
-    numbers = load_samples(SAMPLES / "numbers", single_digit=False)
+    digits = load_digits()
+    numbers = load_numbers()
     print(f"Found {len(digits)} digit photos and {len(numbers)} number photos.")
     if not digits and not numbers:
         print(f"\nNothing to evaluate. Add photos to {SAMPLES.relative_to(ROOT)}/digits "
