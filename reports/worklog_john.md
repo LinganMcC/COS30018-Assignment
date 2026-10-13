@@ -285,3 +285,67 @@ The lesson I am recording for myself: a result is not reproducible just because 
 - Open the pull request into `main` and send Russell and Liam the entry points; `segment_digits()` and `preprocess()` now default to the selected pair, so the pipeline needs no extra settings.
 - Collect a sheet of handwriting from each teammate, plus one with a different pen, lined paper and uneven light, and re-run both real-data comparisons on the larger set.
 - Draft the Data preprocessing and Image segmentation report sections from these tables.
+
+---
+
+## Week 10 — w/c 12 Oct 2026
+
+**Sprint:** 4 (Extension, Evaluation, Delivery)
+
+### Work completed
+
+- Fixed the operator gap in segmentation that was blocking Russell's extension, and measured both what it gains and what it costs.
+- Added `segment_expression()` as the extension's entry point, and a labelled expression generator (`src/generate_number.py --expressions`) so the fix could be measured rather than just demonstrated.
+- Handed the real test set over to Liam: `src/test_set.py` is now the single loader for the photographed samples, with `reports/custom_test_set.csv` describing what is in the set.
+- Wrote the two report sections I own: `reports/report_task1_preprocessing.md` and `reports/report_task2_segmentation.md`.
+- Corrected the selection table in `src/preprocessing.py`, which still carried the pre-merge figures.
+
+### Task 2 on operators
+
+The README listed this as mine and described it as the height filter dropping a minus sign. It was worse than that. Measuring the boxes on a 160 px test expression: a minus sign is 5% of the image height against a 15% gate, an asterisk 13%, and a division sign arrives as three separate regions of ink, each of which is dropped on its own. Three of the six operator classes never reached a classifier.
+
+The mistake in the original rule is that it measures a box against the *image*. That works for digits only because a digit always fills a good share of the frame. The fix measures a candidate against the tallest box in the same image instead — the digits set the scale, whatever margins the photo has — and admits a box that is either bar-like (several times wider than tall, which no digit is) or blob-like (roughly square, smaller than a digit but far larger than dust). Separately, boxes whose columns overlap are merged, which puts the bar and two dots of a division sign back together.
+
+| Method | Operators off | Operators on |
+|---|---|---|
+| **contours (selected)** | 28% | **85%** |
+| connected_components | 28% | 85% |
+| watershed | 3% | 58% |
+| projection | 40% | 35% |
+
+40 generated expressions, scored on getting exactly the right number of symbols. `projection` goes *down*, and that is not noise: it cuts on vertical gaps, and a division sign's dots sit in the same columns as its bar, so the three pieces arrive as one band it cannot tell from a minus sign. `segment_expression()` now rejects `projection` by name rather than returning a quietly wrong answer.
+
+### The regression I nearly shipped
+
+My first version merged every pair of overlapping boxes, not only the operator-shaped ones. On the 27 real numbers that took digit-count accuracy from 74% to 67%, and the giveaway was that the *total* box count went down rather than up — so the loss was not noise being admitted, it was two digits being joined. Slanted handwriting puts one digit far enough over its neighbour's column to look like a stacked pair.
+
+Restricting the merge to operator-shaped boxes fixed it and gave a better property for free: turning the flag on can now only *add* boxes, so a digit that was found before is still found afterwards. The residual cost is honest noise:
+
+| Method | Operators off | Operators on |
+|---|---|---|
+| contours | 74% | 70% |
+| watershed | 52% | 37% |
+
+One number of 27, to one extra box. That is why the behaviour is opt-in and the digit path is untouched — a shape much shorter than a digit is what an operator looks like, and it is also what a speck of dirt looks like. Watershed loses far more because it already fragments ink and the relaxed filter then accepts the fragments.
+
+I would not have caught either of these without a number to look at. The unit tests all passed on the version that was quietly losing digits.
+
+### Reflection
+
+Two things stand out from this week.
+
+The first is that the bug was in a parameter, not in an algorithm. All four segmentation methods were capable of finding operators; a single threshold expressed in the wrong units was discarding them. I had written `min_height_ratio` as a fraction of the image back in Sprint 2 because every test image then was a tightly cropped number, where image height and digit height are nearly the same thing. The assumption was invisible until the input changed shape.
+
+The second is a repeat of the `projection` lesson from Sprint 3, which I apparently had to learn twice: a method that wins on generated data has not been shown to work. This time I had the real set ready and checked the cost before committing, instead of after.
+
+### Blockers / risks
+
+- The expression evidence is partly synthetic. The digits are real MNIST samples but the operator glyphs are drawn, because the team's handwritten operator samples are still not collected. Shape and relative size are what segmentation depends on, so the ranking should hold, but the figures should be re-measured before they go in the report as final. This is Russell's collection task and it has now slipped from Sprint 2 to Week 10.
+- Liam's half of Task 3 and the whole evaluation harness are still absent from the repository — no SVM or Random Forest baseline, no per-class precision/recall/F1, no confusion matrices. My test set is handed over and described, so nothing of mine blocks it, but Task 4 cannot be written without it and we are three weeks from submission. Raising this at the next tutor check-in.
+- Touching digits remain the system limit and I am not planning to attack them again: both alternatives are implemented and neither beat `contours` on real photographs. It is documented as a limitation rather than hidden.
+
+### Next week
+
+- Re-measure the expression figures on real handwritten operators as soon as the samples exist.
+- Second sheet of handwriting from each teammate, different pen and lighting, to widen the test set beyond one writer before Liam runs the final evaluation.
+- Support Russell wiring `segment_expression()` into the GUI and the parser.

@@ -179,15 +179,16 @@ CONFIGS = {
 # Selected configuration (Task 1). Chosen on three measurements, because the
 # first one could not tell the options apart:
 #
-#                        MNIST, 5 seeds    70 real digits   27 real numbers,
-#                        (team LeNet)      (single crops)   read end to end*
-#   otsu_mnist_box  <-   0.960 +/- 0.005      82.9%              63%
-#   otsu                 0.967 +/- 0.006      82.9%               7%
-#   otsu_denoised        0.959 +/- 0.005      82.9%               7%
-#   adaptive_mnist_box   0.965 +/- 0.003      20.0%              56%
-#   adaptive             0.967 +/- 0.003      51.4%               4%
-#   grayscale_only       0.967 +/- 0.005      32.9%               0%
-#   grayscale_mnist_box  0.962 +/- 0.003      28.6%              19%
+#                          MNIST, 5 seeds    70 real digits   27 real numbers,
+#                          (team LeNet)      (single crops)   read end to end*
+#   otsu_mnist_box    <-   0.960 +/- 0.005      84.3%              63%
+#   otsu_denoised_centered 0.956 +/- 0.005      81.4%               -
+#   otsu                   0.967 +/- 0.006      78.6%               7%
+#   otsu_denoised          0.959 +/- 0.005      78.6%               7%
+#   adaptive               0.967 +/- 0.003      61.4%               4%
+#   grayscale_only         0.967 +/- 0.005      54.3%               0%
+#   adaptive_mnist_box     0.965 +/- 0.003      40.0%              56%
+#   grayscale_mnist_box    0.962 +/- 0.003      38.6%              19%
 #
 #   * segmented with SELECTED_METHOD (contours), each crop classified by the
 #     team CNN, number counted right only if every digit is right.
@@ -198,11 +199,11 @@ CONFIGS = {
 #    0, as in MNIST, while grayscale_only leaves a grey haze the CNN never saw.
 # 3. End to end, the 20x20 box is essential: segmentation hands over tight
 #    crops, and a plain resize stretches them to fill 28x28. Otsu alone falls
-#    from 83% on single digits to 7% on numbers; with the box it reads 63%.
+#    from 79% on single digits to 7% on numbers; with the box it reads 63%.
 #
 # otsu_mnist_box is the only configuration at the top of both real tests.
 # With 27 numbers the end-to-end figure is +/- about 9 points, so the margin
-# over adaptive_mnist_box (56%) alone is not decisive; its 83% against 20% on
+# over adaptive_mnist_box (56%) alone is not decisive; its 84% against 40% on
 # single digits is. The remaining end-to-end errors are mostly segmentation:
 # 7 of the 10 misread numbers were split into the wrong number of pieces, 6 of
 # them because the digits touch.
