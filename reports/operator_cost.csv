@@ -1,0 +1,5 @@
+method,images,digit_count_accuracy_off,digit_count_accuracy_on,selected
+contours,27,0.7407,0.7037,yes
+connected_components,27,0.7407,0.7037,
+projection,27,0.1852,0.1852,
+watershed,27,0.5185,0.3704,

@@ -20,6 +20,7 @@ Outputs:
     reports/custom_preprocessing.csv    digit accuracy per preprocessing configuration
     reports/custom_segmentation.csv     count accuracy and exact-number accuracy per method
     reports/custom_pipeline.csv         with --all-configs: method x configuration
+    reports/custom_results_by_image.csv the selected pipeline on every image, with its writer
     reports/custom_demo/<method>/       annotated images, MISMATCH_ prefix on failures
 """
 
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import shutil
 import sys
 from pathlib import Path
 
@@ -38,40 +40,10 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from preprocessing import CONFIGS, SELECTED_CONFIG, preprocess
 from segmentation import METHODS as CLASSICAL, SELECTED_METHOD, annotate
+from test_set import SAMPLES, load_digits, load_numbers, load_writers
 
-SAMPLES = ROOT / "data" / "custom_samples"
 REPORTS = ROOT / "reports"
-IMAGE_TYPES = {".png", ".jpg", ".jpeg"}
 CNN_CHECKPOINT = ROOT / "models" / "checkpoints" / "cnn_lenet.keras"
-
-
-# ---------------------------------------------------------------------------
-# Loading
-# ---------------------------------------------------------------------------
-
-def load_samples(folder: Path, single_digit: bool) -> list[tuple[str, np.ndarray, str]]:
-    """Return (filename, image, label). The label is the filename before '_'."""
-    if not folder.exists():
-        return []
-    heic = sorted(p.name for p in folder.iterdir() if p.suffix.lower() == ".heic")
-    if heic:
-        print(f"  ! {len(heic)} HEIC file(s) in {folder.name}/ cannot be read by OpenCV. "
-              f"Export them as JPG. e.g. {heic[0]}")
-
-    samples = []
-    for path in sorted(folder.iterdir()):
-        if path.suffix.lower() not in IMAGE_TYPES:
-            continue
-        label = path.stem.split("_")[0]
-        if not label.isdigit() or (single_digit and len(label) != 1):
-            print(f"  ! skipped {path.name}: filename must start with the label, e.g. 3_01.jpg")
-            continue
-        image = cv2.imread(str(path))
-        if image is None:
-            print(f"  ! skipped {path.name}: could not be read")
-            continue
-        samples.append((path.name, image, label))
-    return samples
 
 
 # ---------------------------------------------------------------------------
@@ -79,13 +51,13 @@ def load_samples(folder: Path, single_digit: bool) -> list[tuple[str, np.ndarray
 # ---------------------------------------------------------------------------
 
 class Classifier:
-    def __init__(self, kind: str):
+    def __init__(self, kind: str, checkpoint: Path = CNN_CHECKPOINT):
         self.kind = kind
         if kind == "cnn":
             import tensorflow as tf
-            if not CNN_CHECKPOINT.exists():
-                raise FileNotFoundError(f"{CNN_CHECKPOINT} not found")
-            self.model = tf.keras.models.load_model(str(CNN_CHECKPOINT))
+            if not checkpoint.exists():
+                raise FileNotFoundError(f"{checkpoint} not found")
+            self.model = tf.keras.models.load_model(str(checkpoint))
         else:
             from digit_classifier import get_classifier
             self.model = get_classifier("mlp")
@@ -93,7 +65,9 @@ class Classifier:
     def predict(self, image: np.ndarray, config: str) -> int:
         if self.kind == "cnn":
             x = preprocess(image, config=config, add_channel=True)[np.newaxis]
-            return int(self.model.predict(x, verbose=0).argmax())
+            # first 10 outputs only, so a model with extra (operator) classes
+            # is still scored as a digit classifier
+            return int(self.model.predict(x, verbose=0)[0, :10].argmax())
         x = preprocess(image, config=config)[np.newaxis]
         return int(self.model.predict_proba(x)[0, :10].argmax())
 
@@ -162,6 +136,9 @@ def compare_segmentation(samples, methods: dict, classifier,
             print(f"  ! {name} skipped ({type(exc).__name__}: {exc})")   # sliding_cnn without TF
             continue
         out_dir = REPORTS / "custom_demo" / name
+        # Start empty: images from an earlier run of a smaller test set would
+        # otherwise sit next to this run's and be counted as its failures.
+        shutil.rmtree(out_dir, ignore_errors=True)
         out_dir.mkdir(parents=True, exist_ok=True)
         count_ok = exact_ok = 0
         for filename, image, label in samples:
@@ -217,6 +194,99 @@ def compare_pipeline(samples, methods: dict, classifier) -> list[dict]:
     return sorted(results, key=lambda r: r["exact_number_accuracy"], reverse=True)
 
 
+def results_by_image(digits, numbers, classifier) -> list[dict]:
+    """The selected pipeline on every image, with the sheet and writer it came from.
+
+    The averages above hide who the system works for. Split by writer they
+    show whether one person's handwriting, or the deliberately hard sheet,
+    is what pulls the figures down.
+    """
+    origin = load_writers()
+    segment = CLASSICAL[SELECTED_METHOD]
+    rows = []
+    for filename, image, label in digits:
+        sheet, writer = origin.get(f"digits/{filename}", ("", ""))
+        read = str(classifier.predict(image, SELECTED_CONFIG))
+        rows.append({"kind": "digit", "file": filename, "sheet": sheet, "writer": writer,
+                     "label": label, "read": read, "touching": "",
+                     "count_right": "", "correct": int(read == label)})
+    for filename, image, label in numbers:
+        sheet, writer = origin.get(f"numbers/{filename}", ("", ""))
+        read, boxes = read_number(image, segment, classifier, SELECTED_CONFIG)
+        rows.append({"kind": "number", "file": filename, "sheet": sheet, "writer": writer,
+                     "label": label, "read": read,
+                     "touching": int("_t" in Path(filename).stem),
+                     "count_right": int(len(boxes) == len(label)),
+                     "correct": int(read == label)})
+    return rows
+
+
+def print_by_sheet(rows: list[dict]) -> None:
+    def pct(items, key):
+        return f"{sum(r[key] for r in items) / len(items):.0%}" if items else "-"
+
+    print(f"By sheet - selected pipeline ({SELECTED_METHOD} + {SELECTED_CONFIG})")
+    print(f"  {'sheet':14s} {'writer':9s} {'digits':>7s} {'numbers':>8s} "
+          f"{'count':>6s} {'exact':>6s}")
+    sheets = sorted({r["sheet"] for r in rows})
+    for sheet in sheets:
+        d = [r for r in rows if r["sheet"] == sheet and r["kind"] == "digit"]
+        n = [r for r in rows if r["sheet"] == sheet and r["kind"] == "number"]
+        writer = (d or n)[0]["writer"] or "?"
+        print(f"  {sheet or '(unknown)':14s} {writer:9s} {pct(d, 'correct'):>7s} {len(n):>8d} "
+              f"{pct(n, 'count_right'):>6s} {pct(n, 'correct'):>6s}")
+    n = [r for r in rows if r["kind"] == "number"]
+    for name, part in (("touching", [r for r in n if r["touching"]]),
+                       ("separate", [r for r in n if not r["touching"]])):
+        print(f"  {name + ' digits':24s} {len(part):>17d} "
+              f"{pct(part, 'count_right'):>6s} {pct(part, 'correct'):>6s}")
+    print("  digits = single-digit accuracy; count / exact = numbers split into the "
+          "right count / read exactly\n")
+
+
+# Thien's digit models, as saved in models/checkpoints/. cnn_best is the
+# Sprint 3 pick: deep VGG retrained with light augmentation (run s3_B5_bs_64).
+TEAM_CHECKPOINTS = ["mlp_simple", "cnn_lenet", "cnn_resnet", "cnn_vgg_deep", "cnn_best"]
+
+
+def compare_checkpoints(digits, numbers) -> list[dict]:
+    """Each of the team's trained models behind the selected pipeline.
+
+    Accuracy on the MNIST test set is 98.99-99.62% for all of them, which says
+    little about photographs. Here every model gets the same crops: the same
+    preprocessing, and the same contours boxes computed once.
+    """
+    segment = CLASSICAL[SELECTED_METHOD]
+    boxes = [segment(image)[1] for _, image, _ in numbers]
+    results = []
+    for name in TEAM_CHECKPOINTS:
+        path = ROOT / "models" / "checkpoints" / f"{name}.keras"
+        if not path.exists():
+            print(f"  ! {name}: {path.name} not found, skipped")
+            continue
+        model = Classifier("cnn", path)
+        digit_ok = sum(str(model.predict(img, SELECTED_CONFIG)) == label
+                       for _, img, label in digits)
+        exact = in_count = digit_hits = 0
+        for (_, image, label), number_boxes in zip(numbers, boxes):
+            read = "".join(str(model.predict(image[y:y + h, x:x + w], SELECTED_CONFIG))
+                           for (x, y, w, h) in number_boxes)
+            exact += read == label
+            if len(read) == len(label):
+                in_count += len(label)
+                digit_hits += sum(a == b for a, b in zip(read, label))
+        results.append({
+            "model": name,
+            "single_digit_accuracy": round(digit_ok / len(digits), 4),
+            "exact_number_accuracy": round(exact / len(numbers), 4),
+            "digit_accuracy_when_count_right": round(digit_hits / in_count, 4) if in_count else "",
+        })
+        print(f"  {name:14s} {results[-1]['single_digit_accuracy']:>8.1%} "
+              f"{results[-1]['exact_number_accuracy']:>8.0%} "
+              f"{results[-1]['digit_accuracy_when_count_right'] or 0:>9.0%}")
+    return results
+
+
 def save_csv(rows: list[dict], path: Path) -> None:
     with open(path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
@@ -233,12 +303,18 @@ def main() -> None:
                         help="preprocessing used on each digit crop in the number test")
     parser.add_argument("--all-configs", action="store_true",
                         help="whole-number test for every method x every configuration")
+    parser.add_argument("--compare-models", action="store_true",
+                        help="each of the team's trained models on the real set")
+    parser.add_argument("--pipeline-only", action="store_true",
+                        help="only the method x configuration table; leaves the other CSVs alone")
+    parser.add_argument("--by-sheet-only", action="store_true",
+                        help="only the per-sheet breakdown; leaves the comparison CSVs alone")
     args = parser.parse_args()
 
     print("Evaluation on real handwriting")
     print("=" * 66)
-    digits = load_samples(SAMPLES / "digits", single_digit=True)
-    numbers = load_samples(SAMPLES / "numbers", single_digit=False)
+    digits = load_digits()
+    numbers = load_numbers()
     print(f"Found {len(digits)} digit photos and {len(numbers)} number photos.")
     if not digits and not numbers:
         print(f"\nNothing to evaluate. Add photos to {SAMPLES.relative_to(ROOT)}/digits "
@@ -248,6 +324,39 @@ def main() -> None:
     classifier = pick_classifier(args.model)
     print(f"Classifier: {classifier.kind}\n")
     REPORTS.mkdir(parents=True, exist_ok=True)
+
+    if args.compare_models:
+        print(f"Team models behind {SELECTED_METHOD} + {SELECTED_CONFIG}")
+        print(f"  {'model':14s} {'digits':>8s} {'exact':>8s} {'digits*':>9s}")
+        rows = compare_checkpoints(digits, numbers)
+        save_csv(rows, REPORTS / "custom_models.csv")
+        print("  digits = single-digit photos; exact = whole numbers read exactly;")
+        print("  * digit accuracy over numbers split into the right count")
+        print("Saved: reports/custom_models.csv")
+        return
+
+    if args.pipeline_only:
+        # Only the method x configuration table, so a re-run does not replace
+        # the slow --all-methods segmentation table with a shorter one.
+        rows = compare_pipeline(numbers, dict(CLASSICAL), classifier)
+        save_csv(rows, REPORTS / "custom_pipeline.csv")
+        print("End to end - exact numbers read, every method x configuration")
+        print(f"  {'method':22s} {'config':24s} {'exact':>6s} {'digits*':>8s}")
+        for r in rows:
+            mark = "  <- selected" if r["selected"] else ""
+            d = r["digit_accuracy_when_count_right"]
+            print(f"  {r['method']:22s} {r['config']:24s} {r['exact_number_accuracy']:>6.0%} "
+                  f"{(f'{d:.0%}' if d != '' else '-'):>8s}{mark}")
+        print("  * digit accuracy, over numbers where the digit count was right")
+        print("Saved: reports/custom_pipeline.csv")
+        return
+
+    if args.by_sheet_only:
+        rows = results_by_image(digits, numbers, classifier)
+        save_csv(rows, REPORTS / "custom_results_by_image.csv")
+        print_by_sheet(rows)
+        print("Saved: reports/custom_results_by_image.csv")
+        return
 
     if digits:
         rows = compare_preprocessing(digits, classifier)
@@ -288,8 +397,12 @@ def main() -> None:
             print("  * digit accuracy, over numbers where the digit count was right")
             print("  Full table: reports/custom_pipeline.csv\n")
 
+    rows = results_by_image(digits, numbers, classifier)
+    save_csv(rows, REPORTS / "custom_results_by_image.csv")
+    print_by_sheet(rows)
+
     print("Saved: reports/custom_preprocessing.csv, reports/custom_segmentation.csv, "
-          "reports/custom_demo/")
+          "reports/custom_results_by_image.csv, reports/custom_demo/")
 
 
 if __name__ == "__main__":

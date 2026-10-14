@@ -72,7 +72,7 @@ def section_preprocessing() -> None:
     mnist = read("preprocessing_comparison.csv", "config")
     real = read("custom_preprocessing.csv", "config")
     print("TASK 1 - 8 PREPROCESSING TECHNIQUES")
-    print("  MNIST: team CNN retrained 5 times per technique.  Real: 70 handwritten digits.\n")
+    print("  MNIST: team CNN retrained 5 times per technique.  Real: 149 handwritten digits, four writers.\n")
     print(f"  {'#':>2}  {'technique':24s} {'MNIST':>6s} {'real':>6s}  what it does")
     print("  " + "-" * 92)
     for i, name in enumerate(CONFIGS, 1):
@@ -88,7 +88,7 @@ def section_segmentation() -> None:
     generated = read("segmentation_comparison.csv", "method")
     real = read("custom_segmentation.csv", "method")
     print("TASK 2 - 4 SEGMENTATION TECHNIQUES (no model)")
-    print("  Generated: 30 numbers.  Real: 27 handwritten numbers, 8 with touching digits.\n")
+    print("  Generated: 30 numbers.  Real: 99 handwritten numbers, 25 with touching digits.\n")
     print(f"  {'#':>2}  {'technique':22s} {'generated':>9s} {'real':>6s} {'read':>6s}  what it does")
     print("  " + "-" * 92)
     for i, name in enumerate(SEG_EXPLAIN, 1):

@@ -1,9 +1,9 @@
 config,images,correct,accuracy,selected
-otsu_mnist_box,70,59,0.8429,yes
-otsu_denoised_centered,70,57,0.8143,
-otsu,70,55,0.7857,
-otsu_denoised,70,55,0.7857,
-adaptive,70,43,0.6143,
-grayscale_only,70,38,0.5429,
-adaptive_mnist_box,70,28,0.4,
-grayscale_mnist_box,70,27,0.3857,
+otsu_mnist_box,149,122,0.8188,yes
+otsu_denoised_centered,149,119,0.7987,
+otsu,149,114,0.7651,
+otsu_denoised,149,114,0.7651,
+adaptive,149,94,0.6309,
+grayscale_only,149,91,0.6107,
+grayscale_mnist_box,149,57,0.3826,
+adaptive_mnist_box,149,50,0.3356,
