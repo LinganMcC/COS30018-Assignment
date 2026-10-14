@@ -1,0 +1,168 @@
+"""
+Each detail dict has: label, confidence, box (x, y, w, h) and top3, so the GUI
+can show per-symbol confidence and the segmented preview.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+import numpy as np
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CHECKPOINTS = REPO_ROOT / "models" / "checkpoints"
+SRC = REPO_ROOT / "src"
+
+DEFAULT_LABELS = [str(d) for d in range(10)]   # models trained before label files existed
+
+# Frozen checkpoints the team should load (see README section 6).
+FROZEN = {
+    "cnn_best": "digits 0-9 - deeper VGG, tuned (run s3_B5_bs_64)",
+    "ext_best": "digits + operators (16 classes) - deeper VGG (run ext_v2)",
+}
+
+
+def resolve_checkpoint(name_or_path: str | Path) -> Path:
+    """Accept 'cnn_best', 'tuning/pm_lenet_best' or a full path to a .keras file."""
+    p = Path(name_or_path)
+    if p.suffix == ".keras" and p.exists():
+        return p
+    candidate = CHECKPOINTS / f"{name_or_path}.keras"
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(
+        f"No checkpoint '{name_or_path}'. Expected {candidate}. Frozen models: "
+        f"{', '.join(FROZEN)}")
+
+
+def load_label_names(checkpoint: Path) -> List[str]:
+    """Class names saved by the trainer, or 0-9 for older checkpoints."""
+    label_file = checkpoint.with_suffix(".labels.json")
+    if label_file.exists():
+        return list(json.loads(label_file.read_text())["label_names"])
+    return list(DEFAULT_LABELS)
+
+
+def _src_on_path() -> None:
+    if str(SRC) not in sys.path:
+        sys.path.insert(0, str(SRC))
+
+
+class Recogniser:
+    """A frozen model plus its label names and the matching preprocessing."""
+
+    DIGITS: Tuple[str, ...] = tuple(DEFAULT_LABELS)
+
+    def __init__(self, checkpoint: str | Path = "cnn_best", model=None,
+                 label_names: Optional[Sequence[str]] = None):
+        """Load from models/checkpoints/<checkpoint>.keras.
+
+        `model` and `label_names` can be injected instead (used by the tests,
+        so they run without a trained checkpoint).
+        """
+        if model is None:
+            import tensorflow as tf
+            path = resolve_checkpoint(checkpoint)
+            model = tf.keras.models.load_model(str(path))
+            label_names = label_names or load_label_names(path)
+        self.name = Path(str(checkpoint)).stem
+        self.model = model
+        self.labels: List[str] = list(label_names or DEFAULT_LABELS)
+        n_out = int(self.model.output_shape[-1])
+        if n_out != len(self.labels):
+            raise ValueError(f"{self.name}: model has {n_out} outputs but "
+                             f"{len(self.labels)} label names")
+
+    #  classification 
+    def _mask(self, allowed: Optional[Iterable[str]]) -> Optional[np.ndarray]:
+        if allowed is None:
+            return None
+        allowed = set(allowed)
+        unknown = allowed - set(self.labels)
+        if unknown:
+            raise ValueError(f"{self.name} has no classes {sorted(unknown)}")
+        return np.array([l in allowed for l in self.labels])
+
+    def probabilities(self, patches: np.ndarray,
+                      allowed: Optional[Iterable[str]] = None) -> np.ndarray:
+        """Softmax over the classes for a batch of (N, 28, 28[, 1]) patches.
+
+        With `allowed`, every other class is zeroed and the rest renormalised,
+        i.e. the model is asked "which of THESE is it?".
+        """
+        x = np.asarray(patches, dtype="float32")
+        if x.ndim == 3:
+            x = x[..., np.newaxis]
+        if x.max() > 1.0:          # accept 0-255 input as well
+            x = x / 255.0
+        probs = np.asarray(self.model.predict(x, verbose=0), dtype="float64")
+        mask = self._mask(allowed)
+        if mask is not None:
+            probs = probs * mask
+            probs = probs / np.clip(probs.sum(axis=1, keepdims=True), 1e-12, None)
+        return probs
+
+    def classify(self, patches: np.ndarray, allowed: Optional[Iterable[str]] = None
+                 ) -> List[Dict]:
+        """One dict per patch: label, confidence and the top-3 alternatives."""
+        probs = self.probabilities(patches, allowed)
+        out = []
+        for p in probs:
+            order = np.argsort(p)[::-1][:3]
+            out.append({
+                "label": self.labels[order[0]],
+                "confidence": float(p[order[0]]),
+                "top3": [(self.labels[i], float(p[i])) for i in order],
+            })
+        return out
+
+    #  whole images 
+    def read_crops(self, crops: Sequence[np.ndarray],
+                   allowed: Optional[Iterable[str]] = None) -> List[Dict]:
+        """Classify crops of the ORIGINAL photo (dark ink on light paper)."""
+        _src_on_path()
+        from preprocessing import preprocess
+        if len(crops) == 0:
+            return []
+        patches = np.stack([preprocess(c, add_channel=True) for c in crops])
+        return self.classify(patches, allowed)
+
+    def read_image(self, image: np.ndarray, allowed: Optional[Iterable[str]] = None,
+                   method: Optional[str] = None) -> Tuple[str, List[Dict]]:
+        """Segment a photo, classify every box left to right, return (text, details).
+
+        Uses John's selected segmentation (contours) and preprocessing
+        (otsu_mnist_box). Boxes are cropped from the original photo, not the
+        binary mask - that is what preprocess() expects (README section 7).
+        """
+        _src_on_path()
+        from segmentation import SELECTED_METHOD, segment_digits
+        _, boxes = segment_digits(image, method=method or SELECTED_METHOD)
+        crops = [image[y:y + h, x:x + w] for (x, y, w, h) in boxes]
+        details = self.read_crops(crops, allowed)
+        for d, box in zip(details, boxes):
+            d["box"] = tuple(int(v) for v in box)
+        return "".join(d["label"] for d in details), details
+
+
+if __name__ == "__main__":
+    import argparse
+    import cv2
+
+    ap = argparse.ArgumentParser(description="Read one photo with a frozen model.")
+    ap.add_argument("image")
+    ap.add_argument("--model", default="cnn_best")
+    ap.add_argument("--digits-only", action="store_true",
+                    help="with ext_best: switch the symbol classes off")
+    args = ap.parse_args()
+    img = cv2.imread(args.image)
+    if img is None:
+        sys.exit(f"Could not read {args.image}")
+    rec = Recogniser(args.model)
+    text, details = rec.read_image(img, Recogniser.DIGITS if args.digits_only else None)
+    print(f"{rec.name}: {text!r}")
+    for d in details:
+        alts = ", ".join(f"{l} {p:.2f}" for l, p in d["top3"][1:])
+        print(f"  {d['label']:>2}  {d['confidence']:.3f}  box={d['box']}  (next: {alts})")

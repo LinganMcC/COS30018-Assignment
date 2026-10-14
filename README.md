@@ -30,7 +30,7 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 
 ---
 
-## 2. Status (as of 11 Oct, end of Sprint 3)
+## 2. Status (as of 12 Oct, Sprint 4 week 10)
 
 **Done**
 
@@ -43,11 +43,13 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 - [x] Final digit CNN frozen: `models/checkpoints/cnn_best.keras` (deeper VGG, batch 64, 99.62 % test)
 - [x] Extension dataset: operator symbols from HASYv2 + Kaggle (`src/download_symbols.py`)
 - [x] First 16-class model (digits + `+ - * / ( )`): `models/checkpoints/ext_best.keras`
+- [x] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison
+- [x] Per-class precision / recall / F1 and confusion matrices for `ext_best` and `cnn_best`
+- [x] All final models tested on the team's real handwriting (`models/experiments/eval/`)
+- [x] One loader for the frozen models (`models/cnn/inference.py`) for the GUI and the parser
 
 **Still open**
 
-- [ ] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison – Thien
-- [ ] Per-symbol accuracy and confusion matrix for `ext_best.keras` – Thien + Liam
 - [ ] GUI still uses placeholder functions; `predict_digits` returns random digits – Russell
 - [ ] Segmentation of operators (see section 8) – John
 - [ ] Team's own handwritten operator samples for real-world testing – Russell + team
@@ -205,6 +207,22 @@ python summarise_tuning.py --dataset mnist+symbols --freeze     # -> checkpoints
 The Kaggle part is a manual download: extract `data.rar` into
 `data/downloads/xainano/` and the script finds it automatically.
 
+**Sprint 4 – evaluating the frozen models** (from `models/cnn/`)
+
+```bash
+# Per-class precision / recall / F1 + confusion matrices (clean and shifted test)
+python evaluate_classes.py                    # ext_best and cnn_best
+
+# Every final model on the photos in data/custom_samples/
+python evaluate_real.py
+# ...and the stage A augmentation runs as well (needs checkpoints/tuning/, local only)
+python evaluate_real.py --runs s3_A1_aug_none s3_A2_aug_light s3_A3_aug_medium s3_A4_aug_strong
+```
+
+Results go to `models/experiments/eval/`: `<model>_report.md`, `<model>_per_class.csv`,
+`<model>_confusion.png`, `real_handwriting.md`, `real_vs_mnist.png`,
+`real_errors_cnn_best.png`.
+
 **Where results go**
 
 - `models/experiments/tuning_log.csv` – one row per tuning run
@@ -226,7 +244,31 @@ The Kaggle part is a manual download: extract `data.rar` into
 
 ## 7. Using the pieces from your own code
 
-**Preprocess + segment + recognise one image**
+**Easiest: `Recogniser` (recommended for the GUI and the parser)**
+
+```python
+import sys
+sys.path.insert(0, "models/cnn")            # run from the repo root
+from inference import Recogniser
+
+digits = Recogniser("cnn_best")             # digits 0-9
+text, details = digits.read_image(image)    # "94026", one dict per box
+
+expr = Recogniser("ext_best")               # digits + + - * / ( )
+text, details = expr.read_image(image)                              # "12+(3*4)"
+text, details = expr.read_image(image, allowed=Recogniser.DIGITS)   # plain numbers
+```
+
+`read_image` segments with John's selected method, preprocesses each crop the
+same way as training, and reads the class names from the `.labels.json`.
+Each `details` entry has `label`, `confidence`, `box` and `top3`, which is what
+the GUI needs for the per-digit confidence display and the segmented preview.
+Use `allowed=Recogniser.DIGITS` when `ext_best` reads a plain number:
+otherwise a slanted 1 can come back as `-` or `/` (seen on real photos).
+Quick check from the command line:
+`python models/cnn/inference.py data/custom_samples/numbers/896_t1.jpg --model ext_best`
+
+**By hand: preprocess + segment + recognise one image**
 
 ```python
 import sys, json
@@ -270,7 +312,13 @@ labels = json.load(open("models/checkpoints/cnn_best.labels.json"))["label_names
   `predict_digits` are still placeholders. Swap in `segment_digits`,
   `preprocess` and a loaded model as shown in section 7.
 - **Which model to load:** `cnn_best.keras` is the frozen digit model. `demo_one.py`
-  and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it.
+  and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it
+  (on real photos cnn_best reads 90 % of single digits, cnn_lenet 84 %).
+- **Real handwriting vs MNIST:** every model scores ~99 % on MNIST but 73–90 % on the
+  70 real digit photos, and only 74 % of real numbers are split into the right
+  number of pieces. Whole-number failures are mostly segmentation; see
+  `models/experiments/eval/real_handwriting.md`. Do not pick or retrain a model
+  using these photos - they are the only real test set.
 - **Extension – segmentation:** `segmentation.py` drops any box shorter than 15 %
   of the image height (`min_height_ratio=0.15`). That also drops a minus sign and
   the dots of ÷, and ÷ splits into three pieces. Needs a fix before the
