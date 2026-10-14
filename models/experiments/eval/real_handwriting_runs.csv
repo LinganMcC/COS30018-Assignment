@@ -1,0 +1,5 @@
+run_id,mnist_test,real_digits,ci_low,ci_high,exact_number,count_right,digit_when_count_right
+s3_A1_aug_none,0.9952,0.8571,0.7566,0.9205,0.6667,0.7407,0.9180
+s3_A2_aug_light,0.9965,0.8857,0.7904,0.9409,0.6667,0.7407,0.9180
+s3_A3_aug_medium,0.9933,0.9000,0.8077,0.9507,0.6296,0.7407,0.9016
+s3_A4_aug_strong,0.9926,0.9429,0.8621,0.9776,0.6667,0.7407,0.9180

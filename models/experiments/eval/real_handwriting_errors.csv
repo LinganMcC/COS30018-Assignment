@@ -1,0 +1,77 @@
+model,file,true,predicted,confidence
+MLP (tuned),1_06.jpg,1,2,0.747
+MLP (tuned),2_01.jpg,2,1,0.824
+MLP (tuned),2_06.jpg,2,1,0.496
+MLP (tuned),3_02.jpg,3,7,0.689
+MLP (tuned),3_04.jpg,3,5,0.676
+MLP (tuned),3_06.jpg,3,7,0.850
+MLP (tuned),3_07.jpg,3,5,0.576
+MLP (tuned),4_01.jpg,4,7,0.368
+MLP (tuned),4_02.jpg,4,1,0.431
+MLP (tuned),4_05.jpg,4,9,0.515
+MLP (tuned),4_06.jpg,4,5,0.600
+MLP (tuned),5_06.jpg,5,4,0.810
+MLP (tuned),7_01.jpg,7,2,0.546
+MLP (tuned),7_03.jpg,7,2,0.577
+MLP (tuned),7_05.jpg,7,2,0.921
+MLP (tuned),8_02.jpg,8,7,0.605
+MLP (tuned),8_04.jpg,8,5,0.792
+MLP (tuned),9_01.jpg,9,7,0.620
+LeNet-5 (tuned),1_05.jpg,1,7,0.583
+LeNet-5 (tuned),1_06.jpg,1,2,0.703
+LeNet-5 (tuned),3_06.jpg,3,7,0.999
+LeNet-5 (tuned),4_05.jpg,4,9,0.910
+LeNet-5 (tuned),4_06.jpg,4,2,0.965
+LeNet-5 (tuned),7_05.jpg,7,2,0.909
+LeNet-5 (tuned),7_06.jpg,7,2,0.885
+LeNet-5 (tuned),8_02.jpg,8,7,0.537
+LeNet-5 (tuned),9_01.jpg,9,3,0.805
+ResNet (tuned),1_06.jpg,1,7,0.497
+ResNet (tuned),2_06.jpg,2,0,0.315
+ResNet (tuned),3_06.jpg,3,7,0.735
+ResNet (tuned),4_05.jpg,4,9,0.680
+ResNet (tuned),4_06.jpg,4,7,0.294
+ResNet (tuned),5_04.jpg,5,3,0.480
+ResNet (tuned),5_06.jpg,5,4,0.678
+ResNet (tuned),7_05.jpg,7,2,0.830
+ResNet (tuned),7_06.jpg,7,2,0.360
+ResNet (tuned),8_02.jpg,8,7,0.885
+VGG-deep = cnn_best,1_06.jpg,1,2,0.730
+VGG-deep = cnn_best,3_06.jpg,3,7,0.995
+VGG-deep = cnn_best,4_06.jpg,4,5,0.574
+VGG-deep = cnn_best,5_06.jpg,5,6,0.590
+VGG-deep = cnn_best,7_05.jpg,7,2,0.759
+VGG-deep = cnn_best,7_06.jpg,7,2,0.951
+VGG-deep = cnn_best,8_02.jpg,8,7,0.901
+"ext_best, digits only",0_05.jpg,0,6,0.946
+"ext_best, digits only",2_06.jpg,2,7,0.856
+"ext_best, digits only",3_06.jpg,3,7,0.987
+"ext_best, digits only",4_06.jpg,4,5,0.926
+"ext_best, digits only",5_04.jpg,5,3,0.758
+"ext_best, digits only",5_06.jpg,5,4,0.935
+"ext_best, digits only",7_05.jpg,7,2,0.916
+"ext_best, digits only",7_06.jpg,7,2,0.789
+"ext_best, digits only",8_02.jpg,8,7,0.905
+"ext_best, digits only",9_01.jpg,9,3,0.865
+"ext_best, all 16 classes",0_05.jpg,0,6,0.946
+"ext_best, all 16 classes",1_06.jpg,1,-,0.802
+"ext_best, all 16 classes",2_06.jpg,2,7,0.854
+"ext_best, all 16 classes",3_06.jpg,3,7,0.987
+"ext_best, all 16 classes",4_06.jpg,4,5,0.466
+"ext_best, all 16 classes",5_04.jpg,5,3,0.756
+"ext_best, all 16 classes",5_06.jpg,5,4,0.935
+"ext_best, all 16 classes",7_05.jpg,7,*,0.937
+"ext_best, all 16 classes",7_06.jpg,7,2,0.552
+"ext_best, all 16 classes",8_02.jpg,8,7,0.899
+"ext_best, all 16 classes",9_01.jpg,9,3,0.865
+Sprint 2 LeNet (cnn_lenet),1_05.jpg,1,7,0.485
+Sprint 2 LeNet (cnn_lenet),1_06.jpg,1,2,0.887
+Sprint 2 LeNet (cnn_lenet),2_06.jpg,2,8,0.866
+Sprint 2 LeNet (cnn_lenet),3_06.jpg,3,7,1.000
+Sprint 2 LeNet (cnn_lenet),4_05.jpg,4,9,0.507
+Sprint 2 LeNet (cnn_lenet),4_06.jpg,4,5,0.900
+Sprint 2 LeNet (cnn_lenet),5_06.jpg,5,4,1.000
+Sprint 2 LeNet (cnn_lenet),7_03.jpg,7,2,0.785
+Sprint 2 LeNet (cnn_lenet),7_05.jpg,7,2,0.998
+Sprint 2 LeNet (cnn_lenet),8_02.jpg,8,7,0.848
+Sprint 2 LeNet (cnn_lenet),9_01.jpg,9,3,0.831
