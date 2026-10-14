@@ -127,7 +127,15 @@ class Recogniser:
         if len(crops) == 0:
             return []
         patches = np.stack([preprocess(c, add_channel=True) for c in crops])
-        return self.classify(patches, allowed)
+        details = self.classify(patches, allowed)
+        for d, patch in zip(details, patches):
+            d["input"] = patch[..., 0]      # the 28x28 image the model saw (0-1)
+        return details
+
+    def reads_operators(self, allowed: Optional[Iterable[str]] = None) -> bool:
+        """True when this call can output an operator class (+ - * / ( ))."""
+        classes = set(self.labels) if allowed is None else set(allowed)
+        return bool(classes - set(DEFAULT_LABELS))
 
     def read_image(self, image: np.ndarray, allowed: Optional[Iterable[str]] = None,
                    method: Optional[str] = None) -> Tuple[str, List[Dict]]:
@@ -138,8 +146,10 @@ class Recogniser:
         binary mask - that is what preprocess() expects (README section 7).
         """
         _src_on_path()
-        from segmentation import SELECTED_METHOD, segment_digits
-        _, boxes = segment_digits(image, method=method or SELECTED_METHOD)
+        from segmentation import SELECTED_METHOD, segment_digits, segment_expression
+        # segment_expression keeps operators that segment_digits drops
+        segment = segment_expression if self.reads_operators(allowed) else segment_digits
+        _, boxes = segment(image, method=method or SELECTED_METHOD)
         crops = [image[y:y + h, x:x + w] for (x, y, w, h) in boxes]
         details = self.read_crops(crops, allowed)
         for d, box in zip(details, boxes):
