@@ -179,33 +179,39 @@ CONFIGS = {
 # Selected configuration (Task 1). Chosen on three measurements, because the
 # first one could not tell the options apart:
 #
-#                        MNIST, 5 seeds    70 real digits   27 real numbers,
-#                        (team LeNet)      (single crops)   read end to end*
-#   otsu_mnist_box  <-   0.960 +/- 0.005      82.9%              63%
-#   otsu                 0.967 +/- 0.006      82.9%               7%
-#   otsu_denoised        0.959 +/- 0.005      82.9%               7%
-#   adaptive_mnist_box   0.965 +/- 0.003      20.0%              56%
-#   adaptive             0.967 +/- 0.003      51.4%               4%
-#   grayscale_only       0.967 +/- 0.005      32.9%               0%
-#   grayscale_mnist_box  0.962 +/- 0.003      28.6%              19%
+#                          MNIST, 5 seeds    149 real digits   99 real numbers,
+#                          (team LeNet)      (single crops)    read end to end*
+#   otsu_mnist_box    <-   0.960 +/- 0.005      81.9%              62%
+#   otsu_denoised_centered 0.956 +/- 0.005      79.9%               7%
+#   otsu                   0.967 +/- 0.006      76.5%               1%
+#   otsu_denoised          0.959 +/- 0.005      76.5%               1%
+#   adaptive               0.967 +/- 0.003      63.1%               2%
+#   grayscale_only         0.967 +/- 0.005      61.1%               1%
+#   grayscale_mnist_box    0.962 +/- 0.003      38.3%              11%
+#   adaptive_mnist_box     0.965 +/- 0.003      33.6%              34%
 #
 #   * segmented with SELECTED_METHOD (contours), each crop classified by the
 #     team CNN, number counted right only if every digit is right.
+#   Real set: six sheets by four writers, one of them on hand-ruled lines with
+#   slanted writing (reports/custom_test_set.csv, data/custom_samples/sheets.csv).
 #
 # 1. On MNIST all eight are within run-to-run noise of each other. It cannot
 #    choose. (MNIST digits already sit in a 20x20 box, so the box adds nothing there.)
 # 2. On real photos thresholding is essential: Otsu forces the paper to exactly
 #    0, as in MNIST, while grayscale_only leaves a grey haze the CNN never saw.
 # 3. End to end, the 20x20 box is essential: segmentation hands over tight
-#    crops, and a plain resize stretches them to fill 28x28. Otsu alone falls
-#    from 83% on single digits to 7% on numbers; with the box it reads 63%.
+#    crops, and a plain resize stretches them to fill 28x28. otsu_denoised_
+#    centered is second on single digits (79.9%, 3 images behind) but reads
+#    7% of numbers; with the box, Otsu reads 62%.
 #
-# otsu_mnist_box is the only configuration at the top of both real tests.
-# With 27 numbers the end-to-end figure is +/- about 9 points, so the margin
-# over adaptive_mnist_box (56%) alone is not decisive; its 83% against 20% on
-# single digits is. The remaining end-to-end errors are mostly segmentation:
-# 7 of the 10 misread numbers were split into the wrong number of pieces, 6 of
-# them because the digits touch.
+# otsu_mnist_box is the only configuration at the top of both real tests. On
+# single digits alone its lead over otsu_denoised_centered is within noise;
+# the end-to-end column is what decides it.
+#
+# Known limitation, measured: ruled lines. On the lined sheet single digits
+# drop to 30% (6 of 20), against 90% on the five plain sheets. Otsu keeps the
+# line as ink and the 20x20 box fits around it, so a digit sitting on a line
+# arrives with a bar along its base; 7 of the 14 errors were read as "2".
 SELECTED_CONFIG = "otsu_mnist_box"
 
 

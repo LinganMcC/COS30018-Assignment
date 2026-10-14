@@ -13,6 +13,7 @@ __pycache__/
 # Datasets (regenerate with src/prepare_data.py and src/generate_number.py)
 data/raw/
 data/generated/
+data/generated_expressions/
 ~/.keras/datasets/
 data/symbols/
 data/downloads/

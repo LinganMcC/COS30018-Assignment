@@ -1,0 +1,5 @@
+method,images,symbol_count_accuracy_off,symbol_count_accuracy_on,selected
+contours,40,0.275,0.85,yes
+connected_components,40,0.275,0.85,
+projection,40,0.4,0.35,
+watershed,40,0.025,0.575,

@@ -36,7 +36,11 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 
 - [x] Task 1 – 8 preprocessing configurations compared; selected: `otsu_mnist_box`
 - [x] Task 2 – 4 classical + 4 model-based (sliding-window) segmentation methods compared; selected: `contours`
-- [x] Real handwritten test photos in `data/custom_samples/`
+- [x] Real handwritten test photos in `data/custom_samples/` – 149 single digits
+      (14–15 per class) and 99 numbers of 2–5 digits from six sheets by four
+      writers (`data/custom_samples/sheets.csv`); load them with
+      `src/test_set.py`, described in `reports/custom_test_set.csv`
+- [x] Operators segmented for the extension – `segment_expression()`
 - [x] 4 recognition models trained on MNIST: LeNet-5, VGG-deep, ResNet, MLP
 - [x] Config-driven trainer with data augmentation (`models/cnn/trainer.py`)
 - [x] Tuning stage A (augmentation) and stage B (learning rate / dropout / batch size)
@@ -49,8 +53,10 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 - [ ] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison – Thien
 - [ ] Per-symbol accuracy and confusion matrix for `ext_best.keras` – Thien + Liam
 - [ ] GUI still uses placeholder functions; `predict_digits` returns random digits – Russell
-- [ ] Segmentation of operators (see section 8) – John
 - [ ] Team's own handwritten operator samples for real-world testing – Russell + team
+- [ ] Classical ML baseline (SVM / Random Forest on HOG) and the shared
+      evaluation harness: per-class precision / recall / F1 and confusion
+      matrices – Liam
 
 Run `python src/show_progress.py` for a live DONE/TODO list.
 
@@ -128,7 +134,18 @@ python experiments/evaluate_custom.py
 
 # Every technique and result in one summary (fast, no TensorFlow)
 python experiments/show_techniques.py
+
+# Task 2 on arithmetic expressions - do the operators get their own boxes?
+python src/generate_number.py --expressions --count 40     # first, once
+python experiments/evaluate_operators.py
+
+# What is in the real handwritten test set (writes reports/custom_test_set.csv)
+python src/test_set.py
 ```
+
+The two report sections for these tasks are written up in
+`reports/report_task1_preprocessing.md` and
+`reports/report_task2_segmentation.md`.
 
 **Adding your own handwriting:** put the label before the underscore in the filename.
 
@@ -253,6 +270,30 @@ Why crop the original photo: the preprocessing expects the image as it was
 taken (dark ink on light paper). `experiments/evaluate_custom.py` (`read_number`)
 is a full working example.
 
+**Evaluate on the real handwritten set** — one loader, so every script agrees
+on which images exist and what their labels are:
+
+```python
+import sys
+sys.path.insert(0, "src")
+from test_set import load_digits, load_numbers
+
+for filename, image, label in load_numbers():   # image is BGR from cv2.imread
+    ...                                         # label is the true number, e.g. "94026"
+```
+
+**Recognise an arithmetic expression** (the extension) — same contract as
+`segment_digits`, but the boxes also cover `+ - * / ( )`:
+
+```python
+from segmentation import segment_expression
+
+crops, boxes = segment_expression(image)        # ordered left to right
+```
+
+Classify those crops with `ext_best.keras` and read the class names from
+`ext_best.labels.json`; classes 10–15 are the operators.
+
 **Models trained by the new trainer** come with a label file next to them,
 e.g. `cnn_best.keras` + `cnn_best.labels.json`. Read the class names from that
 file instead of assuming index = digit. This matters for the extension, where
@@ -271,10 +312,14 @@ labels = json.load(open("models/checkpoints/cnn_best.labels.json"))["label_names
   `preprocess` and a loaded model as shown in section 7.
 - **Which model to load:** `cnn_best.keras` is the frozen digit model. `demo_one.py`
   and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it.
-- **Extension – segmentation:** `segmentation.py` drops any box shorter than 15 %
-  of the image height (`min_height_ratio=0.15`). That also drops a minus sign and
-  the dots of ÷, and ÷ splits into three pieces. Needs a fix before the
-  extension can work.
+- **Extension – segmentation:** done. Use `segment_expression(image)` from
+  `src/segmentation.py` instead of `segment_digits`; it returns one box per
+  symbol including `+ - * / ( )`, ordered left to right. 85 % of generated
+  expressions are split into exactly the right number of symbols, against 28 %
+  before (`reports/operator_segmentation.csv`). It stays off for plain numbers
+  because it costs 4 points of digit-count accuracy — see
+  `reports/operator_cost.csv` and section 6 of
+  `reports/report_task2_segmentation.md`.
 - **Extension – model (Russell's parser):** `ext_best.keras` outputs 16 classes. Read
   the class names from `ext_best.labels.json`; classes 10–15 are `+ - * / ( )`,
   where `*` covers both × and the asterisk, and `/` means ÷.
