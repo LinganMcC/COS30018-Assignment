@@ -69,8 +69,21 @@ def resize_image(image: np.ndarray, size: tuple[int, int] = TARGET_SIZE) -> np.n
     return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
 
 
+def _limit_shift(shift: int, low: int, high: int) -> int:
+    """Clamp shift to [low, high]; leave it alone if that range is empty."""
+    if low > high:
+        return shift
+    return int(min(max(shift, low), high))
+
+
 def center_by_mass(image: np.ndarray) -> np.ndarray:
-    """Shift the digit so its centre of mass is in the middle."""
+    """Shift the digit so its centre of mass is in the middle.
+
+    The shift is limited so no ink is pushed onto or past the frame edge. A
+    top-heavy digit such as 7 has its mass high up, so a full centring shift
+    can be larger than the 4 px border fit_to_mnist_box leaves; without the
+    limit the tip touches the edge, and a bigger shift would cut it off.
+    """
     moments = cv2.moments(image)
     if moments["m00"] == 0:
         return image
@@ -79,6 +92,12 @@ def center_by_mass(image: np.ndarray) -> np.ndarray:
     rows, cols = image.shape
     shift_x = cols // 2 - cx
     shift_y = rows // 2 - cy
+    # Keep at least 1 px of empty border on every side after the shift. If the
+    # ink already reaches the edge (plain-resize configs) there is no room on
+    # that axis, so the original shift is kept unchanged.
+    ys, xs = np.nonzero(image)
+    shift_x = _limit_shift(shift_x, 1 - xs.min(), cols - 2 - xs.max())
+    shift_y = _limit_shift(shift_y, 1 - ys.min(), rows - 2 - ys.max())
     translation = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
     return cv2.warpAffine(image, translation, (cols, rows))
 

@@ -129,6 +129,24 @@ def test_mnist_box_leaves_a_border(white_on_black_digit):
     assert out[:, 0].sum() == 0 and out[:, -1].sum() == 0
 
 
+def test_center_by_mass_never_pushes_ink_off_the_frame():
+    """A very top-heavy shape needs a big shift; it must stop 1 px from the edge."""
+    img = np.zeros((28, 28), dtype=np.uint8)
+    img[4:8, 4:24] = 255           # heavy bar at the top
+    img[8:24, 13:15] = 255         # thin stem below it
+    out = center_by_mass(img)
+    assert out[-1, :].sum() == 0 and out[0, :].sum() == 0
+    assert out.sum() == img.sum()  # nothing cut off
+
+
+def test_center_by_mass_full_frame_ink_unchanged():
+    """If the ink already reaches every edge there is no room to move it."""
+    img = np.zeros((28, 28), dtype=np.uint8)
+    img[:, 0] = img[:, -1] = img[0, :] = img[-1, :] = 255
+    img[0:6, :] = 255
+    assert center_by_mass(img).shape == (28, 28)
+
+
 def test_mnist_box_preserves_aspect_ratio():
     """A tall thin stroke must stay tall and thin, not be stretched square."""
     tall = np.zeros((100, 100), dtype=np.uint8)
