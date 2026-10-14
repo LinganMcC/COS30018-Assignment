@@ -383,6 +383,26 @@ Touching digits are still the biggest loss: separate digits are read exactly 81%
 of the time (74 numbers), touching ones 4% (25 numbers), and 22 of the 38 wrong
 numbers are touching ones split into too few pieces.
 
+### Which model reads the digits
+
+Every real-data figure so far used LeNet. Thien has trained four more, all
+98.99-99.62% on MNIST, so I ran the selected pipeline behind each:
+
+| Model | Real digits | Real numbers exact | Digits when count right |
+|---|---|---|---|
+| cnn_best (VGG + augmentation) | 86.6% | 64% | 90% |
+| cnn_vgg_deep | 84.6% | 62% | 90% |
+| cnn_lenet | 81.9% | 62% | 90% |
+| cnn_resnet | 81.9% | 52% | 82% |
+| mlp_simple | 57.0% | 29% | 55% |
+
+cnn_best is first or tied everywhere, but only two numbers ahead of LeNet out of
+99. The last column explains why: once a number is split correctly, the three
+best models all read 90% of its digits, so a stronger classifier cannot fix
+what segmentation gets wrong. The MLP result is the one to remember - 98.99% on
+MNIST, 57% on photographs. I kept LeNet as the judge for my own comparisons and
+switched `demo_one.py` to cnn_best, which is the model the final system will use.
+
 ### Reflection
 
 Two things stand out from this week.
@@ -400,4 +420,5 @@ The second is a repeat of the `projection` lesson from Sprint 3, which I apparen
 ### Next week
 
 - Re-measure the expression figures on real handwritten operators as soon as the samples exist.
+- Send the model table to Thien and Liam for the Task 3 model selection.
 - Support Russell wiring `segment_expression()` into the GUI and the parser.

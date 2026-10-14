@@ -2,7 +2,7 @@
 
 For showing exactly what segmentation and preprocessing produce: the box
 coordinates of each digit, the crop sizes, the 28x28 input handed to the CNN,
-and the digit it reads.
+and the digit the final system's model reads.
 
 Run:
     python experiments/demo_one.py                                  # default example
@@ -37,19 +37,22 @@ ALL_METHODS = {**CLASSICAL, **ML_METHODS}
 COMPARE = ["contours", "sliding_mlp", "sliding_cnn", "sliding_svm", "sliding_rf"]
 
 DEFAULT = ROOT / "data" / "custom_samples" / "numbers" / "5189_01.jpg"
-CNN_PATH = ROOT / "models" / "checkpoints" / "cnn_lenet.keras"
+# The model the final system uses: Thien's Sprint 3 pick (deep VGG with
+# augmentation). On the real test set it was first or tied on every measure
+# of the five team models (reports/custom_models.csv).
+CNN_PATH = ROOT / "models" / "checkpoints" / "cnn_best.keras"
 
 
 def load_reader():
-    """Thien's CNN if TensorFlow is available, otherwise the MLP."""
+    """Thien's cnn_best if TensorFlow is available, otherwise the MLP."""
     try:
         import tensorflow as tf
         model = tf.keras.models.load_model(str(CNN_PATH))
 
         def read(x):
-            p = model.predict(x[np.newaxis, :, :, np.newaxis], verbose=0)[0]
+            p = model.predict(x[np.newaxis, :, :, np.newaxis], verbose=0)[0, :10]
             return int(p.argmax()), float(p.max())
-        return "CNN LeNet (Thien)", read
+        return "cnn_best - deep VGG with augmentation (Thien)", read
     except Exception:                                    # noqa: BLE001
         from digit_classifier import get_classifier
         mlp = get_classifier("mlp")

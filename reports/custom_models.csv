@@ -1,0 +1,6 @@
+model,single_digit_accuracy,exact_number_accuracy,digit_accuracy_when_count_right
+mlp_simple,0.5705,0.2929,0.5545
+cnn_lenet,0.8188,0.6162,0.9
+cnn_resnet,0.8188,0.5152,0.8227
+cnn_vgg_deep,0.8456,0.6162,0.9
+cnn_best,0.8658,0.6364,0.9045

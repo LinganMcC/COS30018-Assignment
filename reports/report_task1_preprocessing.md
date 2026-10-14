@@ -145,6 +145,35 @@ On the five plain sheets single digits are read 90 % of the time (116 of 129),
 with no writer below 83 %, so the selection is not tuned to one person's hand.
 The ruled sheet is the exception and is explained in the limitations below.
 
+### Does the choice of classifier change the result?
+
+Every real-data figure above is read by the team LeNet, used as a fixed judge so
+that only the preprocessing changes between rows. To check that the judge does
+not decide the outcome, the selected pipeline was run behind each of the five
+models Thien trained (`evaluate_custom.py --compare-models` →
+`reports/custom_models.csv`):
+
+| Model | MNIST test | Real single digits | Real numbers, exact | Digits, when count right |
+|---|---|---|---|---|
+| `cnn_best` (deep VGG + augmentation) | 99.62 % | **86.6 %** | **64 %** | 90 % |
+| `cnn_vgg_deep` | 99.62 % | 84.6 % | 62 % | 90 % |
+| `cnn_lenet` (judge) | 99.29 % | 81.9 % | 62 % | 90 % |
+| `cnn_resnet` | 99.57 % | 81.9 % | 52 % | 82 % |
+| `mlp_simple` | 98.99 % | 57.0 % | 29 % | 55 % |
+
+Three things follow. The three strongest models read 90 % of digits once a
+number is split correctly, so a better classifier barely moves the whole-number
+rate; segmentation is the bottleneck. Augmentation helped a little: the same
+VGG architecture gains two points in both real columns. And MNIST accuracy does
+not predict real accuracy: the MLP is within 0.7 points of the CNNs on MNIST and
+25 to 30 points behind them on photographs.
+
+`cnn_best` leads or ties on every column, but its margin over LeNet on whole
+numbers is two numbers out of 99, which is not a meaningful difference. It is
+the model the final system uses because it is the team's Sprint 3 selection and
+is never worse; the preprocessing and segmentation comparisons keep LeNet as
+their judge, since the ranking of the techniques is the same under either.
+
 ## 5. Selected technique
 
 **`otsu_mnist_box`** — grayscale → Otsu binarization → fit to a 20×20 box inside
