@@ -1,64 +1,34 @@
-"""
-Handwritten Number Recognition System (HNRS) - GUI
-COS30018 Project Option B
-
-Layout
-------
-  Left   : Settings panel (model choice, hyper-parameters, training,
-           preprocessing options, segmentation options)
-  Centre : Notebook with tabs
-             Input        - load a file, drag & drop, or build a number
-                            from a folder of single-digit images
-             Preprocessed - result of the preprocessing step
-             Segments     - detected digit boxes + per-digit predictions
-             Training     - live loss / accuracy curves
-  Bottom : Output panel (recognised number, per-digit confidence)
-
-The section marked BACKEND PLACEHOLDERS contains simple working stand-ins
-(preprocess / segment) and fake stand-ins (train / predict). Replace the
-bodies of those functions with your team's real code; the GUI only depends
-on their signatures.
-
-Dependencies: pillow, numpy, matplotlib, tkinterdnd2 (optional, for drag & drop)
-"""
-
 import os
 import queue
 import random
 import threading
 import time
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
-
+from tkinter import filedialog, messagebox, ttk
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageTk
-
 import matplotlib
-
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
-
     HAS_DND = True
-except ImportError:  # GUI still works, just without drag & drop
+
+# GUI still works, just without drag & drop
+except ImportError:  
     HAS_DND = False
 
-# ----------------------------------------------------------------------------
 # Constants
-# ----------------------------------------------------------------------------
 IMAGE_TYPES = ("png", "jpg", "jpeg", "bmp")
 MODEL_OPTIONS = ["CNN", "MLP", "SVM", "Random Forest"]
 SEGMENT_METHODS = ["Vertical projection"]  # add more as you implement them
+PRETRAINED_DIR = "pretrained_models"
+PRETRAINED_TYPES = (".keras", ".h5", ".pt", ".pth", ".pkl", ".joblib")
 BG = "gainsboro"
 HEADER_BG = "dim gray"
 
-
-# ============================================================================
 # BACKEND PLACEHOLDERS  -  replace with the team's real implementations
-# ============================================================================
 def otsu_threshold(arr):
     """Otsu's method on a uint8 array. Returns a threshold in 0-255."""
     hist = np.bincount(arr.ravel(), minlength=256).astype(float)
@@ -79,7 +49,6 @@ def otsu_threshold(arr):
             best, thresh = between, t
     return thresh
 
-
 def preprocess(img, invert="Auto", blur=False, threshold="Otsu", thresh_value=128):
     """Return a grayscale PIL image with a WHITE digit on a BLACK background
     (the MNIST convention)."""
@@ -97,7 +66,6 @@ def preprocess(img, invert="Auto", blur=False, threshold="Otsu", thresh_value=12
         arr = ((arr > thresh_value) * 255).astype(np.uint8)
     return Image.fromarray(arr)
 
-
 def segment(processed, method="Vertical projection", min_width=3):
     """Split a preprocessed number image into single digits.
 
@@ -107,7 +75,7 @@ def segment(processed, method="Vertical projection", min_width=3):
     mask = arr > otsu_threshold(arr)
     cols = mask.any(axis=0)
 
-    # find runs of "ink" columns
+    # Find runs of "ink" columns
     runs, start = [], None
     for x, has_ink in enumerate(cols):
         if has_ink and start is None:
@@ -133,7 +101,6 @@ def segment(processed, method="Vertical projection", min_width=3):
         boxes.append((x0, y0, x1, y1))
     return digits, boxes
 
-
 def train_model(model_name, params, on_epoch, stop_event):
     """PLACEHOLDER. Train `model_name` on MNIST.
 
@@ -150,51 +117,25 @@ def train_model(model_name, params, on_epoch, stop_event):
         on_epoch(epoch, loss, acc)
     return object()
 
-
 def predict_digits(model_name, model, digit_images):
     """PLACEHOLDER. Return a list of (label, confidence) for each 28x28 image."""
     return [(random.randint(0, 9), random.uniform(0.5, 1.0)) for _ in digit_images]
 
+def load_pretrained(model_name, path):
+    """PLACEHOLDER. Load a saved model for `model_name` from `path` and return
+    it (the same kind of object train_model() returns).
 
-def build_number_image(folder, number_string, spacing=6):
-    """Create an image of a number by picking a random sample of each digit
-    from `folder`.
-
-    Supported folder layouts:
-      folder/0/*.png ... folder/9/*.png      (one sub-folder per digit)
-      folder/<digit>*.png                    (file name starts with the digit)
+    Typical implementations, depending on the model type:
+      CNN / MLP (Keras)  : tf.keras.models.load_model(path)
+      CNN / MLP (PyTorch): model = MyNet(); model.load_state_dict(torch.load(path)); model.eval()
+      SVM / Random Forest: joblib.load(path)
+    Raise an exception if the file is invalid; the GUI will show the error.
     """
-    samples = {}
-    for d in "0123456789":
-        sub = os.path.join(folder, d)
-        files = []
-        if os.path.isdir(sub):
-            files = [os.path.join(sub, f) for f in os.listdir(sub)]
-        else:
-            files = [os.path.join(folder, f) for f in os.listdir(folder) if f.startswith(d)]
-        files = [f for f in files if f.lower().endswith(IMAGE_TYPES)]
-        if files:
-            samples[d] = files
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    return object()
 
-    missing = sorted({c for c in number_string if c not in samples})
-    if missing:
-        raise ValueError(f"No images found for digit(s): {', '.join(missing)}")
-
-    imgs = [Image.open(random.choice(samples[c])).convert("L").resize((28, 28)) for c in number_string]
-    # make the background consistently dark so the result matches MNIST
-    imgs = [ImageOps.invert(i) if np.array(i).mean() > 127 else i for i in imgs]
-    width = sum(i.width for i in imgs) + spacing * (len(imgs) + 1)
-    canvas = Image.new("L", (width, 28 + 2 * spacing), 0)
-    x = spacing
-    for i in imgs:
-        canvas.paste(i, (x, spacing))
-        x += i.width + spacing
-    return canvas
-
-
-# ============================================================================
 # GUI
-# ============================================================================
 class HNRSApp:
     def __init__(self, root):
         self.root = root
@@ -202,27 +143,34 @@ class HNRSApp:
         root.geometry("1150x760")
         root.minsize(980, 640)
 
-        # state
+        # States
         self.original_image = None
         self.processed_image = None
         self.digit_images = []
         self.boxes = []
-        self.models = {}  # model name -> trained model object
+        # Model name -> Trained/loaded model object
+        self.models = {}  
+        # Model name -> Pretrained file path (if loaded from disk)
+        self.loaded_from = {}  
         self.history = {"loss": [], "acc": []}
         self.train_queue = queue.Queue()
         self.stop_event = threading.Event()
-        self._photos = {}  # keep PhotoImage references alive
+        # Keep PhotoImage references alive
+        self._photos = {}  
 
         self._init_variables()
         self._build_layout()
         self._build_settings()
         self._build_notebook()
         self._build_output()
-        self._set_status("Load an image or generate one from a digit folder.")
+        self._set_status("Load an image to get started.")
 
-    # ------------------------------------------------------------------ vars
+    # Variables
     def _init_variables(self):
         self.model_var = tk.StringVar(value=MODEL_OPTIONS[0])
+        # "train" or "pretrained"
+        self.source_var = tk.StringVar(value="train")  
+        self.weights_var = tk.StringVar(value="No pretrained model loaded.")
         self.epochs_var = tk.IntVar(value=10)
         self.batch_var = tk.IntVar(value=64)
         self.lr_var = tk.StringVar(value="0.001")
@@ -234,18 +182,21 @@ class HNRSApp:
         self.minw_var = tk.IntVar(value=3)
         self.status_var = tk.StringVar()
 
-    # ---------------------------------------------------------------- layout
+    # Layout
     def _build_layout(self):
         self.root.columnconfigure(1, weight=1)
         self.root.rowconfigure(0, weight=1)
 
+        # Settings
         self.settings = tk.Frame(self.root, width=250, relief="solid", borderwidth=2, background=BG)
         self.settings.grid(row=0, column=0, sticky="ns", padx=(10, 5), pady=10)
         self.settings.grid_propagate(False)
 
+        # Center
         self.center = tk.Frame(self.root)
         self.center.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
 
+        # Output
         self.output = tk.Frame(self.root, height=140, relief="solid", borderwidth=2, background=BG)
         self.output.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 5))
         self.output.grid_propagate(False)
@@ -268,29 +219,52 @@ class HNRSApp:
         w.pack(side="left", fill="x", expand=True)
         return w
 
-    # -------------------------------------------------------------- settings
+    # Settings
     def _build_settings(self):
         tk.Label(self.settings, text="Settings", font=("Arial", 14), anchor="w", background=HEADER_BG).pack(fill="x")
 
-        # --- model + hyper-parameters
+        # Model + Hyper-parameters
         box = self._section(self.settings, "Model")
-        self._row(box, "Model:", lambda p: ttk.Combobox(p, textvariable=self.model_var,
-                                                         values=MODEL_OPTIONS, state="readonly", width=14))
-        self._row(box, "Epochs:", lambda p: ttk.Spinbox(p, from_=1, to=200, textvariable=self.epochs_var, width=8))
-        self._row(box, "Batch size:", lambda p: ttk.Spinbox(p, from_=8, to=1024, increment=8,
-                                                            textvariable=self.batch_var, width=8))
-        self._row(box, "Learn rate:", lambda p: ttk.Entry(p, textvariable=self.lr_var, width=10))
+        combo = self._row(box, "Model:", lambda p: ttk.Combobox(p, textvariable=self.model_var,
+                                                                 values=MODEL_OPTIONS, state="readonly", width=14))
+        combo.bind("<<ComboboxSelected>>", self._on_model_change)
 
-        btns = tk.Frame(box, background=BG)
+        # Train new or Pretrained
+        src = tk.Frame(box, background=BG)
+        src.pack(fill="x", padx=4)
+        for text, value in (("Train new", "train"), ("Pretrained", "pretrained")):
+            tk.Radiobutton(src, text=text, value=value, variable=self.source_var,
+                           command=self._on_source_change, background=BG).pack(side="left", padx=4)
+
+        # Train new and Pretrained menus share the same section
+        self.model_stack = tk.Frame(box, background=BG)
+        self.model_stack.pack(fill="x")
+
+        # "Train new": Hyper-parameters + Train controls
+        self.train_frame = tk.Frame(self.model_stack, background=BG)
+        self._row(self.train_frame, "Epochs:", lambda p: ttk.Spinbox(p, from_=1, to=200,
+                                                                     textvariable=self.epochs_var, width=8))
+        self._row(self.train_frame, "Batch size:", lambda p: ttk.Spinbox(p, from_=8, to=1024, increment=8,
+                                                                         textvariable=self.batch_var, width=8))
+        self._row(self.train_frame, "Learn rate:", lambda p: ttk.Entry(p, textvariable=self.lr_var, width=10))
+
+        btns = tk.Frame(self.train_frame, background=BG)
         btns.pack(fill="x", padx=4, pady=4)
         self.train_btn = ttk.Button(btns, text="Train", command=self.start_training)
         self.train_btn.pack(side="left", expand=True, fill="x", padx=(0, 2))
         self.stop_btn = ttk.Button(btns, text="Stop", command=self.stop_training, state="disabled")
         self.stop_btn.pack(side="left", expand=True, fill="x", padx=(2, 0))
-        self.progress = ttk.Progressbar(box, mode="determinate")
+        self.progress = ttk.Progressbar(self.train_frame, mode="determinate")
         self.progress.pack(fill="x", padx=6, pady=(0, 6))
 
-        # --- preprocessing
+        # "Pretrained": just a status line; the model loads automatically
+        self.pre_frame = tk.Frame(self.model_stack, background=BG)
+        tk.Label(self.pre_frame, textvariable=self.weights_var, wraplength=210, justify="left",
+                 anchor="w", background=BG).pack(fill="x", padx=6, pady=6)
+
+        self.train_frame.pack(fill="x")  # default source: train new
+
+        # Preprocessing
         box = self._section(self.settings, "Preprocessing")
         self._row(box, "Invert:", lambda p: ttk.Combobox(p, textvariable=self.invert_var,
                                                           values=["Auto", "Yes", "No"], state="readonly", width=10))
@@ -300,7 +274,7 @@ class HNRSApp:
         tk.Checkbutton(box, text="Gaussian blur", variable=self.blur_var, background=BG,
                        anchor="w").pack(fill="x", padx=4)
 
-        # --- segmentation
+        # Segmentation
         box = self._section(self.settings, "Segmentation")
         self._row(box, "Method:", lambda p: ttk.Combobox(p, textvariable=self.seg_var,
                                                           values=SEGMENT_METHODS, state="readonly", width=14))
@@ -310,19 +284,18 @@ class HNRSApp:
             fill="x", padx=12, pady=10, ipady=4
         )
 
-    # -------------------------------------------------------------- notebook
+    # Notebook
     def _build_notebook(self):
         self.nb = ttk.Notebook(self.center)
         self.nb.pack(fill="both", expand=True)
 
-        # ---- Input tab
+        # Input Tab
         self.tab_input = tk.Frame(self.nb)
         self.nb.add(self.tab_input, text="Input")
 
         bar = tk.Frame(self.tab_input)
         bar.pack(fill="x", pady=5, padx=5)
         ttk.Button(bar, text="Load image...", command=self.select_image).pack(side="left", padx=2)
-        ttk.Button(bar, text="Generate from digit folder...", command=self.generate_from_folder).pack(side="left", padx=2)
         ttk.Button(bar, text="Clear", command=self.clear).pack(side="right", padx=2)
 
         self.drop_box = tk.Frame(self.tab_input, relief="solid", borderwidth=2, background=BG)
@@ -338,13 +311,13 @@ class HNRSApp:
                 w.drop_target_register(DND_FILES)
                 w.dnd_bind("<<Drop>>", self.drop_image)
 
-        # ---- Preprocessed tab
+        # Preprocessed Tab
         self.tab_pre = tk.Frame(self.nb)
         self.nb.add(self.tab_pre, text="Preprocessed")
         self.pre_label = tk.Label(self.tab_pre, text="Run recognition to see the preprocessed image.")
         self.pre_label.pack(expand=True, fill="both")
 
-        # ---- Segments tab
+        # Segments Tab
         self.tab_seg = tk.Frame(self.nb)
         self.nb.add(self.tab_seg, text="Segments")
         self.seg_label = tk.Label(self.tab_seg, text="Run recognition to see the segmented digits.")
@@ -352,7 +325,7 @@ class HNRSApp:
         self.thumb_frame = tk.Frame(self.tab_seg)
         self.thumb_frame.pack(fill="x", pady=8)
 
-        # ---- Training tab
+        # Training Tab
         self.tab_train = tk.Frame(self.nb)
         self.nb.add(self.tab_train, text="Training")
         self.fig = Figure(figsize=(5, 3), dpi=100)
@@ -362,7 +335,7 @@ class HNRSApp:
         self.curve_canvas = FigureCanvasTkAgg(self.fig, master=self.tab_train)
         self.curve_canvas.get_tk_widget().pack(fill="both", expand=True)
 
-    # ---------------------------------------------------------------- output
+    # Output
     def _build_output(self):
         tk.Label(self.output, text="Output", font=("Arial", 14), anchor="w", background=HEADER_BG).pack(fill="x")
         self.result_var = tk.StringVar(value="-")
@@ -373,7 +346,7 @@ class HNRSApp:
         self.detail_var = tk.StringVar()
         tk.Label(row, textvariable=self.detail_var, justify="left", anchor="w", background=BG).pack(side="left", padx=20)
 
-    # ----------------------------------------------------------- image input
+    # Image input
     def select_image(self):
         path = filedialog.askopenfilename(
             title="Select an image",
@@ -397,22 +370,6 @@ class HNRSApp:
         except Exception as e:
             self.image_label.config(image="", text=f"Could not load image\n{e}")
 
-    def generate_from_folder(self):
-        folder = filedialog.askdirectory(title="Select folder of single-digit images")
-        if not folder:
-            return
-        number = simpledialog.askstring("Generate number", "Digits to generate (e.g. 2026):", parent=self.root)
-        if not number:
-            return
-        if not number.isdigit():
-            messagebox.showerror("Invalid input", "Please enter digits 0-9 only.")
-            return
-        try:
-            self.set_input_image(build_number_image(folder, number))
-            self._set_status(f"Generated an image of '{number}'")
-        except Exception as e:
-            messagebox.showerror("Could not generate image", str(e))
-
     def set_input_image(self, img):
         self.original_image = img
         self._show(self.image_label, "input", img, (700, 380))
@@ -426,31 +383,40 @@ class HNRSApp:
         self.result_var.set("-")
         self.detail_var.set("")
 
-    # ----------------------------------------------------------- recognition
+    # Recognition
     def recognise(self):
         if self.original_image is None:
-            messagebox.showinfo("No image", "Load or generate an image first.")
+            messagebox.showinfo("No image", "Load an image first.")
             return
+        
         model_name = self.model_var.get()
+
         if model_name not in self.models:
-            messagebox.showinfo("Model not trained", f"Train the {model_name} model first.")
+            if self.source_var.get() == "pretrained":
+                messagebox.showinfo("No model loaded", f"No pretrained {model_name} model was found in "
+                                    f"'{PRETRAINED_DIR}/'. Add one there, or switch to "
+                                    "Train new.")
+            else:
+                messagebox.showinfo("Model not trained", f"Train the {model_name} model first, "
+                                    "or switch to Pretrained.")
             return
 
-        # Task 1 - preprocessing
+        # Task 1 - Preprocessing
         self.processed_image = preprocess(
             self.original_image, self.invert_var.get(), self.blur_var.get(),
             self.thresh_var.get(), int(self.thresh_val_var.get()),
         )
         self._show(self.pre_label, "pre", self.processed_image, (700, 380))
 
-        # Task 2 - segmentation
+        # Task 2 - Segmentation
         self.digit_images, self.boxes = segment(self.processed_image, self.seg_var.get(), self.minw_var.get())
+
         if not self.digit_images:
             self.result_var.set("?")
             self.detail_var.set("No digits found. Try different preprocessing settings.")
             return
 
-        # Task 3 - classification
+        # Task 3 - Classification
         results = predict_digits(model_name, self.models[model_name], self.digit_images)
         self._show_segments(results)
 
@@ -460,16 +426,17 @@ class HNRSApp:
         self._set_status(f"Recognised {len(results)} digit(s) using {model_name}.")
 
     def _show_segments(self, results):
-        # annotated copy of the processed image with boxes
+        # Annotated copy of the processed image with boxes
         annotated = self.processed_image.convert("RGB")
         draw = ImageDraw.Draw(annotated)
         for (x0, y0, x1, y1), (lbl, _) in zip(self.boxes, results):
             draw.rectangle((x0, y0, x1, y1), outline="red", width=2)
         self._show(self.seg_label, "seg", annotated, (700, 300))
 
-        # one thumbnail + prediction per digit
+        # One thumbnail + Prediction per digit
         for child in self.thumb_frame.winfo_children():
             child.destroy()
+
         for i, (digit, (lbl, conf)) in enumerate(zip(self.digit_images, results)):
             cell = tk.Frame(self.thumb_frame, relief="groove", borderwidth=1)
             cell.pack(side="left", padx=4)
@@ -478,7 +445,54 @@ class HNRSApp:
             tk.Label(cell, image=photo).pack()
             tk.Label(cell, text=f"{lbl} ({conf:.0%})").pack()
 
-    # -------------------------------------------------------------- training
+    # Pretrained models
+    def _on_source_change(self):
+        """Swap the Train-new panel and the Pretrained panel."""
+        if self.source_var.get() == "train":
+            self.pre_frame.pack_forget()
+            self.train_frame.pack(fill="x")
+        else:
+            self.train_frame.pack_forget()
+            self.pre_frame.pack(fill="x")
+            self.autodetect_pretrained()
+
+    def _on_model_change(self, _event=None):
+        if self.source_var.get() == "pretrained":
+            self.autodetect_pretrained()
+
+    def autodetect_pretrained(self):
+        """Called automatically when Pretrained is selected or the model changes.
+        Uses a model already loaded for this name, else looks in PRETRAINED_DIR
+        for a file whose name starts with the model name (e.g. cnn_mnist.keras,
+        random_forest.joblib)."""
+        name = self.model_var.get()
+        if name in self.loaded_from:
+            self.weights_var.set(f"Loaded: {os.path.basename(self.loaded_from[name])}")
+            return
+        
+        key = name.lower().replace(" ", "_")
+
+        if os.path.isdir(PRETRAINED_DIR):
+            for f in sorted(os.listdir(PRETRAINED_DIR)):
+                if f.lower().startswith(key) and f.lower().endswith(PRETRAINED_TYPES):
+                    self.load_pretrained_file(os.path.join(PRETRAINED_DIR, f))
+                    return
+                
+        self.weights_var.set(f"No pretrained {name} model found in '{PRETRAINED_DIR}/'.")
+
+    def load_pretrained_file(self, path):
+        name = self.model_var.get()
+        try:
+            self.models[name] = load_pretrained(name, path)
+        except Exception as e:
+            messagebox.showerror("Could not load model", f"{os.path.basename(path)}\n\n{e}")
+            return
+        
+        self.loaded_from[name] = path
+        self.weights_var.set(f"Loaded: {os.path.basename(path)}")
+        self._set_status(f"Pretrained {name} model loaded from {os.path.basename(path)}.")
+
+    # Training
     def start_training(self):
         try:
             params = {
@@ -531,6 +545,7 @@ class HNRSApp:
                 elif msg[0] == "done":
                     _, name, model = msg
                     self.models[name] = model
+                    self.loaded_from.pop(name, None)  # now a freshly trained model
                     finished = True
         except queue.Empty:
             pass
@@ -553,24 +568,23 @@ class HNRSApp:
         self.ax_acc.set_xlabel("Epoch")
         self.fig.tight_layout()
 
-    # --------------------------------------------------------------- helpers
+    # Helpers
     def _show(self, label, key, img, max_size):
         """Display a PIL image in a label, scaled to fit, keeping aspect ratio."""
         img = img.copy()
         img.thumbnail(max_size)
         photo = ImageTk.PhotoImage(img)
-        self._photos[key] = photo  # prevent garbage collection
+        # Prevent garbage collection
+        self._photos[key] = photo  
         label.config(image=photo, text="")
 
     def _set_status(self, text):
         self.status_var.set(text)
 
-
 def main():
     root = TkinterDnD.Tk() if HAS_DND else tk.Tk()
     HNRSApp(root)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()
