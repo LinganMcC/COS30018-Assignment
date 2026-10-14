@@ -90,14 +90,37 @@ def stroke_width(image: np.ndarray) -> float:
     return round(float(2 * np.median(distance[binary > 0])), 2)
 
 
+def load_writers() -> dict[str, tuple[str, str]]:
+    """'digits/3_01.jpg' -> (sheet, writer), from the files split_sheet.py keeps.
+
+    Images cut before these files existed, or added by hand, map to nothing
+    and show up with a blank writer rather than being dropped.
+    """
+    sources, sheets = SAMPLES / "sources.csv", SAMPLES / "sheets.csv"
+    if not sources.exists():
+        return {}
+    writer_of = {}
+    if sheets.exists():
+        with open(sheets, encoding="utf-8") as fh:
+            writer_of = {r["sheet"]: r["writer"] for r in csv.DictReader(fh)}
+    with open(sources, encoding="utf-8") as fh:
+        return {r["file"]: (r["sheet"], writer_of.get(r["sheet"], ""))
+                for r in csv.DictReader(fh)}
+
+
 def describe(samples: list[Sample], kind: str) -> list[dict]:
+    folder = "digits" if kind == "digit" else "numbers"
+    origin = load_writers()
     rows = []
     for filename, image, label in samples:
         height, width = image.shape[:2]
+        sheet, writer = origin.get(f"{folder}/{filename}", ("", ""))
         rows.append({
             "kind": kind,
             "filename": filename,
             "label": label,
+            "sheet": sheet,
+            "writer": writer,
             "digits": len(label),
             "width": width,
             "height": height,
@@ -136,6 +159,17 @@ def main() -> None:
 
     lengths = sorted({len(lab) for _, _, lab in numbers})
     print(f"Number lengths present: {lengths}")
+
+    sheets: dict[str, list[dict]] = {}
+    for r in rows:
+        sheets.setdefault(r["sheet"] or "(unknown)", []).append(r)
+    print("By sheet:")
+    for sheet, items in sorted(sheets.items()):
+        writer = items[0]["writer"] or "writer not set"
+        n_dig = sum(r["kind"] == "digit" for r in items)
+        print(f"  {sheet:16s} {writer:16s} {n_dig:3d} digits, {len(items) - n_dig:3d} numbers")
+    if any(not r["writer"] for r in rows):
+        print("  ! fill in the writer column of data/custom_samples/sheets.csv")
 
     widths = [r["stroke_width_pct_of_height"] for r in rows]
     print(f"Pen thickness (% of image height): min {min(widths):.2f}, "

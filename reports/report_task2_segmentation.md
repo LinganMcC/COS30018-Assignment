@@ -64,9 +64,11 @@ varied across three difficulty levels — `wide` (+14 px), `tight` (−6 px) and
 methods disagree.
 Script: `experiments/demo_segmentation.py` → `reports/segmentation_comparison.csv`.
 
-**(b) 27 real photographed numbers**, 8 of them containing digits that touch.
-Both digit-count accuracy and end-to-end exact-number accuracy are reported.
-Script: `experiments/evaluate_custom.py` → `reports/custom_segmentation.csv`.
+**(b) 99 real photographed numbers** of 2 to 5 digits, from six sheets written
+by all four team members, one of them on hand-ruled lines with slanted writing;
+25 contain digits that touch. Both digit-count accuracy and end-to-end
+exact-number accuracy (team CNN, `otsu_mnist_box`) are reported.
+Script: `experiments/evaluate_custom.py --all-methods` → `reports/custom_segmentation.csv`.
 
 ## 4. Results
 
@@ -85,27 +87,41 @@ Script: `experiments/evaluate_custom.py` → `reports/custom_segmentation.csv`.
 | `sliding_svm` | 37 % | 40 % | 60 % | 10 % |
 | `sliding_rf` | 23 % | 40 % | 20 % | 10 % |
 
-### (b) 27 real photographed numbers
+### (b) 99 real photographed numbers
 
 | Method | Correct digit count | Exact number read |
 |---|---|---|
-| **`contours`** | **74 %** | **63 %** |
-| `connected_components` | 74 % | 63 % |
-| `confidence_split` | 74 % | 63 % |
-| `watershed` | 52 % | 37 % |
-| `sliding_mlp` | 37 % | 7 % |
-| `cutpoint_mlp` | 33 % | 19 % |
-| `sliding_cnn` | 30 % | 7 % |
-| `projection` | 19 % | 7 % |
-| `sliding_svm` | 19 % | 7 % |
-| `sliding_rf` | 19 % | 4 % |
+| **`contours`** | **75 %** | **62 %** |
+| `connected_components` | 75 % | 62 % |
+| `confidence_split` | 76 % | 62 % |
+| `watershed` | 52 % | 34 % |
+| `cutpoint_mlp` | 27 % | 22 % |
+| `sliding_mlp` | 31 % | 14 % |
+| `sliding_cnn` | 23 % | 9 % |
+| `sliding_rf` | 12 % | 7 % |
+| `projection` | 17 % | 5 % |
+| `sliding_svm` | 6 % | 3 % |
+
+An earlier run on 27 numbers from one writer gave `contours` 74 % and 63 %; the
+figures held when the set grew almost fourfold and gained three more writers.
+
+### (c) Touching against separate digits, selected pipeline
+
+| Numbers | Count | Correct digit count | Exact number read |
+|---|---|---|---|
+| Digits separate | 74 | 96 % | 81 % |
+| Digits touching | 25 | 12 % | 4 % |
+
+The overall 62 % is an average of two very different situations. When the
+digits are apart the pipeline reads four numbers in five exactly; when they
+touch it almost never does.
 
 Figures: `reports/segmentation_methods.png`, `reports/segmentation_touching.png`,
 `reports/segmentation_models_chart.png`, `reports/segmentation_real_visual.png`.
 
 ### The most instructive result: `projection`
 
-`projection` wins table (a) at 83 % and collapses to 19 % — last place — in
+`projection` wins table (a) at 83 % and collapses to 17 % — next to last — in
 table (b). It was in fact the method selected on the generated set, and the
 selection had to be reversed.
 
@@ -133,7 +149,8 @@ expected: they find the same thing — connected regions of ink — computed two
 ways. `contours` is taken as the selection; `connected_components` remains in
 the codebase as the cross-check that the tie is real.
 
-`confidence_split` also ties on real photographs (74 % / 63 %) and is better on
+`confidence_split` also ties on real photographs (76 % / 62 %, one more number
+counted right and none more read right) and is better on
 generated images (80 % vs 70 %). It was not selected because it requires a
 trained model to be loaded before any segmentation can happen, which couples the
 front of the pipeline to the back and makes the GUI and the evaluation harness
@@ -201,7 +218,8 @@ arrive as a single band indistinguishable from a minus sign.
 ### Why this is opt-in, not always on
 
 Admitting shapes much shorter than a digit also admits dirt on the paper.
-Measured on the same 27 real photographed numbers:
+Measured on the first 27 real photographed numbers (one writer, before the test
+set was widened):
 
 | Method | Operators off | Operators on |
 |---|---|---|
@@ -226,17 +244,26 @@ with the flag off is still found, as its own box, with it on.
 
 **Touching digits are the main open limitation.** On the generated set
 `contours` scores 90 % on widely spaced numbers, 80 % on tight ones and 40 % on
-touching ones; on the real photographs only 2 of the 8 numbers with touching
-digits are counted correctly. Two touching digits are one connected region, so a
-connectivity-based method cannot see them as two by construction. Both
-alternatives were implemented — `watershed` and `confidence_split` — and neither
-beat `contours` overall on real data, so the limitation stands rather than
-being traded for a worse average.
+touching ones; on the real photographs 3 of the 25 numbers with touching digits
+are counted correctly, against 96 % of the numbers whose digits are apart. Two
+touching digits are one connected region, so a connectivity-based method cannot
+see them as two by construction. The alternatives were implemented —
+`watershed`, `confidence_split` and four sliding-window models — and none beat
+`contours` overall on real data, so the limitation stands rather than being
+traded for a worse average.
 
-**Segmentation, not classification, is what loses most numbers.** Of the ten
-misread numbers in the end-to-end test, seven were split into the wrong number
-of pieces, six of those because digits touch. Effort spent on touching digits
-would be worth more than effort spent on the classifier.
+**Segmentation, not classification, is what loses most numbers.** Of the 38
+numbers read wrongly in the end-to-end test, 25 were split into the wrong number
+of pieces, 22 of those because digits touch; 13 were split correctly and then
+misread. Effort spent on touching digits would be worth more than effort spent
+on the classifier.
+
+**Ruled paper.** On the lined, slanted sheet 10 of 18 numbers were split into
+the right count, against 67–100 % on the plain sheets. Six of the eight failures
+are its touching numbers; the other two gained an extra piece (46928 read as
+616928, 7842 as 78612). Its exact-number rate was 33 %, lowered further by the
+line reaching the classifier inside the crop — recorded as a preprocessing
+limitation in the Task 1 section.
 
 **The expression evidence is partly synthetic.** The digits in the 40 test
 expressions are real MNIST samples, but the operator glyphs are drawn, because

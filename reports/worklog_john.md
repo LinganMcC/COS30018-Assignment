@@ -330,6 +330,59 @@ One number of 27, to one extra box. That is why the behaviour is opt-in and the 
 
 I would not have caught either of these without a number to look at. The unit tests all passed on the version that was quietly losing digits.
 
+### Widening the real test set to four writers
+
+Until this week every real photo was my own handwriting, which made the
+"real-data" results a claim about one person. Each teammate filled in one A4
+sheet copying the same template (two rows of 0-9, then 2- to 5-digit numbers,
+with the last row deliberately written touching), and I wrote a fourth sheet on
+hand-ruled lines with slanted writing as the hard case. The set went from 70
+digits and 27 numbers to **149 digits and 99 numbers** from six sheets, 25 of
+them with touching digits. `data/custom_samples/sheets.csv` records who wrote
+each sheet, and `sources.csv` which sheet each image came from.
+
+Cutting the new sheets broke `split_sheet.py` four ways, each fixed and tested:
+
+- It split the *widest* box whenever two digits were joined, which halved a large
+  0 while the joined 8 and 9 beside it survived. It now splits the box that most
+  looks like two shapes (lowest ink valley relative to its average column).
+- A fixed gap threshold cannot separate numbers when one writer leaves ~105 px
+  inside a number and ~160 px between numbers. Since the labels say how many
+  numbers each row holds, rows are now cut at that many widest gaps.
+- The edge between paper and a light wooden desk looked like a stroke. Ink is now
+  kept only inside the sheet, found as the bright *colourless* region.
+- On the lined sheet, the ruled line joined a whole row into one blob, and a
+  slanted "1" sat so low it became a row of its own and was dropped as dirt.
+  Ruled lines are now ignored when locating numbers (`--lined`; the crops keep
+  them), and a blob joins a row if half its height overlaps it.
+
+One digit was left out on purpose: a small 9 written over the 8 next to it, for
+which no clean crop exists.
+
+### Results on the wider set
+
+| | 70 digits / 27 numbers (one writer) | 149 / 99 (four writers) |
+|---|---|---|
+| `otsu_mnist_box`, single digits | 84.3% | 81.9% |
+| `contours`, right digit count | 74% | 75% |
+| selected pipeline, exact number | 63% | 62% |
+
+Both selections held. The one thing that moved: `otsu_denoised_centered` is now
+only 3 images behind on single digits (79.9%), which is within noise, so the
+end-to-end column is what decides Task 1 - 62% against 7%.
+
+Split by sheet, the plain sheets read 83-100% of single digits for every
+writer, so the pipeline is not tuned to my hand. The lined sheet read 30%. Going
+through its failures image by image, the row written above its line scored 5 of
+10 and the row sitting on its line 1 of 10, and 7 of the 14 errors were read as
+"2": Otsu keeps the line, the 20x20 box fits around it, and the classifier sees a
+digit with a bar along its base. That is a preprocessing limitation, now
+documented, not a segmentation one.
+
+Touching digits are still the biggest loss: separate digits are read exactly 81%
+of the time (74 numbers), touching ones 4% (25 numbers), and 22 of the 38 wrong
+numbers are touching ones split into too few pieces.
+
 ### Reflection
 
 Two things stand out from this week.
@@ -347,5 +400,4 @@ The second is a repeat of the `projection` lesson from Sprint 3, which I apparen
 ### Next week
 
 - Re-measure the expression figures on real handwritten operators as soon as the samples exist.
-- Second sheet of handwriting from each teammate, different pen and lighting, to widen the test set beyond one writer before Liam runs the final evaluation.
 - Support Russell wiring `segment_expression()` into the GUI and the parser.

@@ -36,8 +36,9 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 
 - [x] Task 1 – 8 preprocessing configurations compared; selected: `otsu_mnist_box`
 - [x] Task 2 – 4 classical + 4 model-based (sliding-window) segmentation methods compared; selected: `contours`
-- [x] Real handwritten test photos in `data/custom_samples/` – 70 single digits
-      (7 per class) and 27 numbers of 2–5 digits; load them with
+- [x] Real handwritten test photos in `data/custom_samples/` – 149 single digits
+      (14–15 per class) and 99 numbers of 2–5 digits from six sheets by four
+      writers (`data/custom_samples/sheets.csv`); load them with
       `src/test_set.py`, described in `reports/custom_test_set.csv`
 - [x] Operators segmented for the extension – `segment_expression()`
 - [x] 4 recognition models trained on MNIST: LeNet-5, VGG-deep, ResNet, MLP

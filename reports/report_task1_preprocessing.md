@@ -60,29 +60,38 @@ and classified by the team LeNet, repeated over five random seeds so that
 run-to-run variation could be separated from a real difference.
 Script: `experiments/compare_preprocessing.py` → `reports/preprocessing_comparison.csv`.
 
-**(b) 70 real single-digit photos.** Seven handwritten samples of each digit
-0–9, photographed on paper. This is the first test where thresholding has
-anything to do, because real paper is not uniformly white.
+**(b) 149 real single-digit photos.** Fourteen or fifteen handwritten samples
+of each digit 0–9, from six photographed sheets written by four people — all
+four team members — one of them deliberately on hand-ruled lines with slanted
+writing. This is the first test where thresholding has anything to do, because
+real paper is not uniformly white.
 Script: `experiments/evaluate_custom.py` → `reports/custom_preprocessing.csv`.
+Who wrote which sheet: `data/custom_samples/sheets.csv`.
 
-**(c) 27 real multi-digit numbers, read end to end.** The whole pipeline —
+**(c) 99 real multi-digit numbers, read end to end.** The whole pipeline —
 segment, crop, preprocess, classify, join — with a number counted correct only
 if every digit in it is correct. This is the only test that sees the crops
 segmentation actually produces, which are much tighter than a hand-framed photo
 of a single digit.
+Script: `evaluate_custom.py --pipeline-only` → `reports/custom_pipeline.csv`.
 
 ## 4. Results
 
-| Configuration | (a) MNIST, 5 seeds | (b) 70 real digits | (c) 27 real numbers |
+| Configuration | (a) MNIST, 5 seeds | (b) 149 real digits | (c) 99 real numbers |
 |---|---|---|---|
-| **`otsu_mnist_box`** | 0.960 ± 0.005 | **84.3 %** | **63 %** |
-| `otsu_denoised_centered` | 0.956 ± 0.005 | 81.4 % | – |
-| `otsu` | 0.967 ± 0.006 | 78.6 % | 7 % |
-| `otsu_denoised` | 0.959 ± 0.005 | 78.6 % | 7 % |
-| `adaptive` | 0.967 ± 0.003 | 61.4 % | 4 % |
-| `grayscale_only` | 0.967 ± 0.005 | 54.3 % | 0 % |
-| `adaptive_mnist_box` | 0.965 ± 0.003 | 40.0 % | 56 % |
-| `grayscale_mnist_box` | 0.962 ± 0.003 | 38.6 % | 19 % |
+| **`otsu_mnist_box`** | 0.960 ± 0.005 | **81.9 %** | **62 %** |
+| `otsu_denoised_centered` | 0.956 ± 0.005 | 79.9 % | 7 % |
+| `otsu` | 0.967 ± 0.006 | 76.5 % | 1 % |
+| `otsu_denoised` | 0.959 ± 0.005 | 76.5 % | 1 % |
+| `adaptive` | 0.967 ± 0.003 | 63.1 % | 2 % |
+| `grayscale_only` | 0.967 ± 0.005 | 61.1 % | 1 % |
+| `grayscale_mnist_box` | 0.962 ± 0.003 | 38.3 % | 11 % |
+| `adaptive_mnist_box` | 0.965 ± 0.003 | 33.6 % | 34 % |
+
+Column (c) uses `contours` segmentation (the Task 2 selection) for every row, so
+only the preprocessing changes. An earlier version of this table was measured on
+70 digits and 27 numbers from one writer; the ranking at the top did not change
+when the set grew to four writers.
 
 Supporting figures: `reports/preprocessing_visual.png` (MNIST digits through
 each configuration) and `reports/preprocessing_real_visual.png` (the same for a
@@ -98,7 +107,7 @@ no noise to remove and the box operation has nothing left to do. Had the project
 stopped at this table it would have had no evidence at all for its choice.
 
 **On real photos, thresholding is what matters.** The spread opens from one
-percentage point to forty-six. Otsu forces the paper to exactly 0, which is
+percentage point to almost fifty. Otsu forces the paper to exactly 0, which is
 what MNIST's background is; `grayscale_only` leaves a grey haze across every
 pixel that the classifier has never seen in training. Adaptive thresholding sits
 in between — it handles uneven lighting well but, with a neighbourhood scaled to
@@ -106,28 +115,46 @@ the image, it also finds "edges" inside the broad flat interior of a thick
 stroke and hollows it out.
 
 **End to end, the geometry is what matters.** `otsu` and `otsu_mnist_box` differ
-only in how the digit is placed in the 28×28 frame, and they score 7 % and 63 %
-on whole numbers against 78.6 % and 84.3 % on single digits. The reason is that
+only in how the digit is placed in the 28×28 frame, and they score 1 % and 62 %
+on whole numbers against 76.5 % and 81.9 % on single digits. The reason is that
 segmentation hands over a *tight* crop with almost no margin. A plain resize
 stretches that crop to fill the full 28×28 frame, producing a digit far larger
 and differently proportioned than any MNIST training sample. `fit_to_mnist_box`
 reproduces the dataset's own convention instead, and the loss disappears.
 
 The same effect explains the one apparent anomaly in the table:
-`adaptive_mnist_box` is second-worst on single digits (40.0 %) yet second-best
-end to end (56 %). The box is worth so much on tight crops that it partly
+`adaptive_mnist_box` is the worst on single digits (33.6 %) yet second-best end
+to end (34 %). The box is worth so much on tight crops that it partly
 compensates for a weaker threshold.
+
+### Results by writer
+
+The selected pipeline on each sheet (`evaluate_custom.py --by-sheet-only` →
+`reports/custom_results_by_image.csv`):
+
+| Sheet | Writer | Single digits | Numbers | Read exactly |
+|---|---|---|---|---|
+| IMG_1406 | John | 90 % | 21 | 57 % |
+| IMG_1407 | John | 83 % | 6 | 83 % |
+| IMG_2005 | Thien | 89 % | 18 | 67 % |
+| IMG_2006 | Liam | 100 % | 18 | 72 % |
+| IMG_2007 | Russell | 100 % | 18 | 72 % |
+| IMG_2010 | John, ruled lines + slant | **30 %** | 18 | 33 % |
+
+On the five plain sheets single digits are read 90 % of the time (116 of 129),
+with no writer below 83 %, so the selection is not tuned to one person's hand.
+The ruled sheet is the exception and is explained in the limitations below.
 
 ## 5. Selected technique
 
 **`otsu_mnist_box`** — grayscale → Otsu binarization → fit to a 20×20 box inside
 a 28×28 frame, centred by mass → normalise to `[0, 1]`.
 
-It is the only configuration at the top of both real-data tests. The
-justification rests on measurement (b) rather than (c): with only 27 numbers,
-the end-to-end figure carries roughly ±9 percentage points, so 63 % against
-`adaptive_mnist_box`'s 56 % is not on its own decisive. The single-digit margin,
-84.3 % against 40.0 % over 70 images, is.
+It is the only configuration at the top of both real-data tests. On single
+digits alone its lead is not decisive: `otsu_denoised_centered` is 3 images
+behind out of 149, which is within noise. Measurement (c) decides it — the same
+two configurations read 62 % and 7 % of whole numbers, because only one of them
+keeps a tight crop in MNIST's proportions.
 
 Denoising was dropped from the selection. It is implemented and available, but
 on this test set it never helped: median blur also erodes the thin end of a pen
@@ -165,10 +192,19 @@ Otsu mask, while the pixels copied into the box keep their original grey values.
 
 ## 7. Limitations
 
-- **The real test set is 70 digits and 27 numbers from one team.** Pen thickness
-  varies by a factor of about 3.4 across it (`reports/custom_test_set.csv`), but
-  it is one set of hands, one camera and one paper stock. The percentages should
-  be read as evidence for ranking the configurations, not as an estimate of
+- **Ruled lines are not removed.** On the lined sheet single digits fall to
+  30 % (6 of 20). Otsu keeps the printed or drawn line as ink, and the 20×20
+  box then fits around digit and line together, so a digit sitting on a line
+  reaches the classifier with a bar along its base — 7 of the 14 errors were
+  read as "2". The row written above its line scored 5 of 10, the row touching
+  its line 1 of 10, so the line rather than the slant is the cause. Removing
+  long horizontal strokes before thresholding (a morphological opening, as
+  `split_sheet.py` already does to locate numbers) is the obvious next step.
+- **The real test set is 149 digits and 99 numbers from four writers.** Pen
+  thickness varies by a factor of about 5.8 across it
+  (`reports/custom_test_set.csv`), but it is one camera and one paper stock, and
+  every sheet copies the same template of numbers. The percentages should be
+  read as evidence for ranking the configurations, not as an estimate of
   accuracy in the wild.
 - **Otsu assumes two brightness peaks.** On a photo with a strong shadow
   gradient across the page there is no single threshold that works, and

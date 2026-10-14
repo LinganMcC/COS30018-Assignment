@@ -316,14 +316,15 @@ METHODS = {
 # Selected technique (Task 2).
 #
 # Correct-digit-count accuracy, first on 30 generated numbers
-# (reports/segmentation_comparison.csv), then on 27 real photographed numbers
-# (reports/custom_segmentation.csv, 8 of them with digits that touch):
+# (reports/segmentation_comparison.csv), then on 99 real photographed numbers
+# by four writers (reports/custom_segmentation.csv, 25 of them with digits
+# that touch). The last column reads the whole number with the team CNN:
 #
-#                          generated   real photos
-#   contours       <-         70%         74%
-#   connected_components      70%         74%
-#   watershed                 50%         52%
-#   projection                83%         19%
+#                          generated   real photos   real, read exactly
+#   contours       <-         70%         75%              62%
+#   connected_components      70%         75%              62%
+#   watershed                 50%         52%              34%
+#   projection                83%         17%               5%
 #
 # projection was selected on the generated set and it did not survive contact
 # with real handwriting: a real pen stroke is thin, so a column through the
@@ -333,11 +334,18 @@ METHODS = {
 #
 # contours and connected_components tie on both sets because they find the
 # same thing - connected regions of ink - computed two ways. contours is kept
-# as the selection. Touching digits remain the open limitation: 2 of the 8
-# touching real numbers are counted correctly.
+# as the selection. The six model-based segmenters in segmentation_ml.py
+# (sliding window with MLP, CNN, SVM, RF; cut points; confidence split) were
+# run on the same 99: confidence_split ties contours at 62%, the rest read
+# 3-22%, so none replaces it.
+#
+# Touching digits remain the open limitation. Separate digits: 96% counted
+# right, 81% read exactly (74 numbers). Touching digits: 12% and 4% (25
+# numbers). 22 of the 38 numbers read wrongly are touching ones split into
+# too few pieces.
 #
 # keep_operators (the extension) is off by default, and the reason is measured.
-# On the same 27 real numbers, correct-count accuracy with the flag on:
+# On the first 27 real numbers, correct-count accuracy with the flag on:
 #
 #                          off    on
 #   contours       <-      74%   70%

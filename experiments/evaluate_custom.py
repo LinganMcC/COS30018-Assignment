@@ -20,6 +20,7 @@ Outputs:
     reports/custom_preprocessing.csv    digit accuracy per preprocessing configuration
     reports/custom_segmentation.csv     count accuracy and exact-number accuracy per method
     reports/custom_pipeline.csv         with --all-configs: method x configuration
+    reports/custom_results_by_image.csv the selected pipeline on every image, with its writer
     reports/custom_demo/<method>/       annotated images, MISMATCH_ prefix on failures
 """
 
@@ -27,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import shutil
 import sys
 from pathlib import Path
 
@@ -38,7 +40,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from preprocessing import CONFIGS, SELECTED_CONFIG, preprocess
 from segmentation import METHODS as CLASSICAL, SELECTED_METHOD, annotate
-from test_set import SAMPLES, load_digits, load_numbers
+from test_set import SAMPLES, load_digits, load_numbers, load_writers
 
 REPORTS = ROOT / "reports"
 CNN_CHECKPOINT = ROOT / "models" / "checkpoints" / "cnn_lenet.keras"
@@ -132,6 +134,9 @@ def compare_segmentation(samples, methods: dict, classifier,
             print(f"  ! {name} skipped ({type(exc).__name__}: {exc})")   # sliding_cnn without TF
             continue
         out_dir = REPORTS / "custom_demo" / name
+        # Start empty: images from an earlier run of a smaller test set would
+        # otherwise sit next to this run's and be counted as its failures.
+        shutil.rmtree(out_dir, ignore_errors=True)
         out_dir.mkdir(parents=True, exist_ok=True)
         count_ok = exact_ok = 0
         for filename, image, label in samples:
@@ -187,6 +192,56 @@ def compare_pipeline(samples, methods: dict, classifier) -> list[dict]:
     return sorted(results, key=lambda r: r["exact_number_accuracy"], reverse=True)
 
 
+def results_by_image(digits, numbers, classifier) -> list[dict]:
+    """The selected pipeline on every image, with the sheet and writer it came from.
+
+    The averages above hide who the system works for. Split by writer they
+    show whether one person's handwriting, or the deliberately hard sheet,
+    is what pulls the figures down.
+    """
+    origin = load_writers()
+    segment = CLASSICAL[SELECTED_METHOD]
+    rows = []
+    for filename, image, label in digits:
+        sheet, writer = origin.get(f"digits/{filename}", ("", ""))
+        read = str(classifier.predict(image, SELECTED_CONFIG))
+        rows.append({"kind": "digit", "file": filename, "sheet": sheet, "writer": writer,
+                     "label": label, "read": read, "touching": "",
+                     "count_right": "", "correct": int(read == label)})
+    for filename, image, label in numbers:
+        sheet, writer = origin.get(f"numbers/{filename}", ("", ""))
+        read, boxes = read_number(image, segment, classifier, SELECTED_CONFIG)
+        rows.append({"kind": "number", "file": filename, "sheet": sheet, "writer": writer,
+                     "label": label, "read": read,
+                     "touching": int("_t" in Path(filename).stem),
+                     "count_right": int(len(boxes) == len(label)),
+                     "correct": int(read == label)})
+    return rows
+
+
+def print_by_sheet(rows: list[dict]) -> None:
+    def pct(items, key):
+        return f"{sum(r[key] for r in items) / len(items):.0%}" if items else "-"
+
+    print(f"By sheet - selected pipeline ({SELECTED_METHOD} + {SELECTED_CONFIG})")
+    print(f"  {'sheet':14s} {'writer':9s} {'digits':>7s} {'numbers':>8s} "
+          f"{'count':>6s} {'exact':>6s}")
+    sheets = sorted({r["sheet"] for r in rows})
+    for sheet in sheets:
+        d = [r for r in rows if r["sheet"] == sheet and r["kind"] == "digit"]
+        n = [r for r in rows if r["sheet"] == sheet and r["kind"] == "number"]
+        writer = (d or n)[0]["writer"] or "?"
+        print(f"  {sheet or '(unknown)':14s} {writer:9s} {pct(d, 'correct'):>7s} {len(n):>8d} "
+              f"{pct(n, 'count_right'):>6s} {pct(n, 'correct'):>6s}")
+    n = [r for r in rows if r["kind"] == "number"]
+    for name, part in (("touching", [r for r in n if r["touching"]]),
+                       ("separate", [r for r in n if not r["touching"]])):
+        print(f"  {name + ' digits':24s} {len(part):>17d} "
+              f"{pct(part, 'count_right'):>6s} {pct(part, 'correct'):>6s}")
+    print("  digits = single-digit accuracy; count / exact = numbers split into the "
+          "right count / read exactly\n")
+
+
 def save_csv(rows: list[dict], path: Path) -> None:
     with open(path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
@@ -203,6 +258,10 @@ def main() -> None:
                         help="preprocessing used on each digit crop in the number test")
     parser.add_argument("--all-configs", action="store_true",
                         help="whole-number test for every method x every configuration")
+    parser.add_argument("--pipeline-only", action="store_true",
+                        help="only the method x configuration table; leaves the other CSVs alone")
+    parser.add_argument("--by-sheet-only", action="store_true",
+                        help="only the per-sheet breakdown; leaves the comparison CSVs alone")
     args = parser.parse_args()
 
     print("Evaluation on real handwriting")
@@ -218,6 +277,29 @@ def main() -> None:
     classifier = pick_classifier(args.model)
     print(f"Classifier: {classifier.kind}\n")
     REPORTS.mkdir(parents=True, exist_ok=True)
+
+    if args.pipeline_only:
+        # Only the method x configuration table, so a re-run does not replace
+        # the slow --all-methods segmentation table with a shorter one.
+        rows = compare_pipeline(numbers, dict(CLASSICAL), classifier)
+        save_csv(rows, REPORTS / "custom_pipeline.csv")
+        print("End to end - exact numbers read, every method x configuration")
+        print(f"  {'method':22s} {'config':24s} {'exact':>6s} {'digits*':>8s}")
+        for r in rows:
+            mark = "  <- selected" if r["selected"] else ""
+            d = r["digit_accuracy_when_count_right"]
+            print(f"  {r['method']:22s} {r['config']:24s} {r['exact_number_accuracy']:>6.0%} "
+                  f"{(f'{d:.0%}' if d != '' else '-'):>8s}{mark}")
+        print("  * digit accuracy, over numbers where the digit count was right")
+        print("Saved: reports/custom_pipeline.csv")
+        return
+
+    if args.by_sheet_only:
+        rows = results_by_image(digits, numbers, classifier)
+        save_csv(rows, REPORTS / "custom_results_by_image.csv")
+        print_by_sheet(rows)
+        print("Saved: reports/custom_results_by_image.csv")
+        return
 
     if digits:
         rows = compare_preprocessing(digits, classifier)
@@ -258,8 +340,12 @@ def main() -> None:
             print("  * digit accuracy, over numbers where the digit count was right")
             print("  Full table: reports/custom_pipeline.csv\n")
 
+    rows = results_by_image(digits, numbers, classifier)
+    save_csv(rows, REPORTS / "custom_results_by_image.csv")
+    print_by_sheet(rows)
+
     print("Saved: reports/custom_preprocessing.csv, reports/custom_segmentation.csv, "
-          "reports/custom_demo/")
+          "reports/custom_results_by_image.csv, reports/custom_demo/")
 
 
 if __name__ == "__main__":
