@@ -116,13 +116,15 @@ def save_history_plot(history: dict, title: str, out_path: Path) -> None:
 # Core training function
 
 
-def train(cfg: TrainConfig, data: Optional[DatasetSplits] = None) -> dict:
+def train(cfg: TrainConfig, data: Optional[DatasetSplits] = None,
+          extra_callbacks: Optional[List[tf.keras.callbacks.Callback]] = None) -> dict:
     """Train one model according to `cfg` and return its summary dict.
 
     Args:
-        cfg:  the run configuration.
-        data: optional pre-loaded dataset (lets a grid load MNIST once and
-              lets tests inject a tiny synthetic dataset).
+        cfg:       the run configuration.
+        data:      optional pre-loaded dataset (lets a grid load MNIST once and
+                   lets tests inject a tiny synthetic dataset).
+        extra_callbacks: extra Keras callbacks (GUI progress + Stop).
     """
     tf.keras.utils.set_random_seed(cfg.seed)  # Python, NumPy and TF seeds.
     paths = RunPaths.for_config(cfg)
@@ -156,7 +158,7 @@ def train(cfg: TrainConfig, data: Optional[DatasetSplits] = None) -> dict:
                                 restore_best_weights=True, verbose=1),
         callbacks.ReduceLROnPlateau(monitor="val_accuracy", factor=0.5,
                                     patience=2, min_lr=1e-5, verbose=1),
-    ]
+    ] + list(extra_callbacks or [])
 
     # Train.
     start = time.time()

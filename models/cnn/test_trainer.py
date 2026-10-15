@@ -133,6 +133,24 @@ def test_train_supports_16_classes(tmp_path):
     assert labels["label_names"][10:] == SYMBOL_LABELS
 
 
+def test_extra_callbacks_see_every_epoch_and_can_stop(tmp_path):
+    """The GUI hooks: per-epoch numbers arrive, and stop_training ends the run."""
+    seen = []
+
+    class StopAfterTwo(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            seen.append((epoch + 1, logs["loss"], logs["val_accuracy"]))
+            if epoch + 1 == 2:
+                self.model.stop_training = True
+
+    cfg = TrainConfig(run_id="t_cb", arch="lenet", max_epochs=6, patience=10,
+                      batch_size=32, output_root=str(tmp_path))
+    summary = train(cfg, data=_synthetic(), extra_callbacks=[StopAfterTwo()])
+    assert [e for e, _, _ in seen] == [1, 2]
+    assert summary["epochs_run"] == 2
+    assert (tmp_path / "checkpoints/tuning/t_cb.keras").exists()   # still saved
+
+
 def test_quick_runs_are_not_logged(tmp_path):
     cfg = TrainConfig(run_id="t_quick", arch="lenet", quick=True, batch_size=32,
                       output_root=str(tmp_path))

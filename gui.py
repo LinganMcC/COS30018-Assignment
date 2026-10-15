@@ -1,5 +1,6 @@
 import os
 import queue
+import sys
 import random
 import threading
 import time
@@ -19,9 +20,13 @@ try:
 except ImportError:  
     HAS_DND = False
 
+# CNN backend (models/cnn/gui_backend.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "cnn"))
+import gui_backend as cnn_backend
+
 # Constants
 IMAGE_TYPES = ("png", "jpg", "jpeg", "bmp")
-MODEL_OPTIONS = ["CNN", "MLP", "SVM", "Random Forest"]
+MODEL_OPTIONS = ["CNN", "CNN + operators", "MLP", "SVM", "Random Forest"]
 SEGMENT_METHODS = ["Vertical projection"]  # add more as you implement them
 PRETRAINED_DIR = "pretrained_models"
 PRETRAINED_TYPES = (".keras", ".h5", ".pt", ".pth", ".pkl", ".joblib")
@@ -107,6 +112,8 @@ def train_model(model_name, params, on_epoch, stop_event):
     Call on_epoch(epoch, loss, accuracy) after every epoch and stop early if
     stop_event.is_set(). Return the trained model object.
     """
+    if cnn_backend.is_cnn(model_name):  # CNN: real training
+        return cnn_backend.train_cnn(model_name, params, on_epoch, stop_event)
     loss, acc = 2.3, 0.1
     for epoch in range(1, params["epochs"] + 1):
         if stop_event.is_set():
@@ -133,6 +140,8 @@ def load_pretrained(model_name, path):
     """
     if not os.path.isfile(path):
         raise FileNotFoundError(path)
+    if cnn_backend.is_cnn(model_name):  # CNN: load .keras
+        return cnn_backend.load_cnn(model_name, path)
     return object()
 
 # GUI
@@ -174,6 +183,8 @@ class HNRSApp:
         self.epochs_var = tk.IntVar(value=10)
         self.batch_var = tk.IntVar(value=64)
         self.lr_var = tk.StringVar(value="0.001")
+        self.arch_var = tk.StringVar(value=cnn_backend.CNN_ARCHS[0])       # CNN only
+        self.aug_var = tk.StringVar(value="light")                          # CNN only
         self.invert_var = tk.StringVar(value="Auto")
         self.blur_var = tk.BooleanVar(value=False)
         self.thresh_var = tk.StringVar(value="Otsu")
@@ -247,6 +258,10 @@ class HNRSApp:
         self._row(self.train_frame, "Batch size:", lambda p: ttk.Spinbox(p, from_=8, to=1024, increment=8,
                                                                          textvariable=self.batch_var, width=8))
         self._row(self.train_frame, "Learn rate:", lambda p: ttk.Entry(p, textvariable=self.lr_var, width=10))
+        self._row(self.train_frame, "CNN arch:", lambda p: ttk.Combobox(p, textvariable=self.arch_var,
+                  values=cnn_backend.CNN_ARCHS, state="readonly", width=10))
+        self._row(self.train_frame, "Augment:", lambda p: ttk.Combobox(p, textvariable=self.aug_var,
+                  values=cnn_backend.AUGMENTATIONS, state="readonly", width=10))
 
         btns = tk.Frame(self.train_frame, background=BG)
         btns.pack(fill="x", padx=4, pady=4)
@@ -401,6 +416,10 @@ class HNRSApp:
                                     "or switch to Pretrained.")
             return
 
+        if cnn_backend.is_cnn(model_name):  # CNN uses its own pipeline
+            self._recognise_cnn(model_name)
+            return
+
         # Task 1 - Preprocessing
         self.processed_image = preprocess(
             self.original_image, self.invert_var.get(), self.blur_var.get(),
@@ -424,6 +443,27 @@ class HNRSApp:
         self.result_var.set(number)
         self.detail_var.set("Confidence per digit:\n" + "  ".join(f"{l}: {c:.0%}" for l, c in results))
         self._set_status(f"Recognised {len(results)} digit(s) using {model_name}.")
+
+    def _recognise_cnn(self, model_name):
+        """CNN recognition; the panel's preprocessing/segmentation settings are not used."""
+        try:
+            out = cnn_backend.recognise_cnn(self.models[model_name], self.original_image)
+        except Exception as e:
+            messagebox.showerror("Recognition failed", str(e))
+            return
+        self.processed_image = out["binary"]
+        self._show(self.pre_label, "pre", self.processed_image, (700, 380))
+        self.digit_images, self.boxes = out["thumbs"], out["boxes"]
+        if not out["results"]:
+            self.result_var.set("?")
+            self.detail_var.set("Nothing found in the image.")
+            return
+        self._show_segments(out["results"])
+        self.result_var.set(out["text"])
+        self.detail_var.set("Confidence per symbol:\n" +
+                            "  ".join(f"{l}: {c:.0%}" for l, c in out["results"]))
+        self._set_status(f"Recognised {len(out['results'])} symbol(s) using {model_name} "
+                         "(project preprocessing + segmentation; panel settings not used).")
 
     def _show_segments(self, results):
         # Annotated copy of the processed image with boxes
@@ -478,6 +518,13 @@ class HNRSApp:
                     self.load_pretrained_file(os.path.join(PRETRAINED_DIR, f))
                     return
                 
+        if cnn_backend.is_cnn(name) and cnn_backend.default_checkpoint(name).is_file():
+            # Nothing in pretrained_models/: use the frozen CNN
+            self.weights_var.set("Loading... (first load takes a few seconds)")
+            self.root.update_idletasks()
+            self.load_pretrained_file(str(cnn_backend.default_checkpoint(name)))
+            return
+
         self.weights_var.set(f"No pretrained {name} model found in '{PRETRAINED_DIR}/'.")
 
     def load_pretrained_file(self, path):
@@ -499,6 +546,8 @@ class HNRSApp:
                 "epochs": int(self.epochs_var.get()),
                 "batch_size": int(self.batch_var.get()),
                 "learning_rate": float(self.lr_var.get()),
+                "arch": self.arch_var.get(),            # used by the CNN only
+                "augmentation": self.aug_var.get(),     # used by the CNN only
             }
         except (ValueError, tk.TclError):
             messagebox.showerror("Invalid parameters", "Check epochs, batch size and learning rate.")
@@ -518,7 +567,11 @@ class HNRSApp:
             def on_epoch(epoch, loss, acc):
                 self.train_queue.put(("epoch", epoch, loss, acc))
 
-            model = train_model(model_name, params, on_epoch, self.stop_event)
+            try:
+                model = train_model(model_name, params, on_epoch, self.stop_event)
+            except Exception as e:  # show the error instead of hanging
+                self.train_queue.put(("error", model_name, e))
+                return
             self.train_queue.put(("done", model_name, model))
 
         threading.Thread(target=worker, daemon=True).start()
@@ -546,6 +599,10 @@ class HNRSApp:
                     _, name, model = msg
                     self.models[name] = model
                     self.loaded_from.pop(name, None)  # now a freshly trained model
+                    finished = True
+                elif msg[0] == "error":
+                    _, name, err = msg
+                    messagebox.showerror("Training failed", f"{name}: {err}")
                     finished = True
         except queue.Empty:
             pass
