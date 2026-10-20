@@ -137,6 +137,11 @@ python experiments/evaluate_custom.py
 # Every technique and result in one summary (fast, no TensorFlow)
 python experiments/show_techniques.py
 
+# Task 2, second round - repairing touching and broken digits
+# (tuned on John's two sheets + generated numbers, scored on the other four sheets)
+python experiments/evaluate_split.py
+python experiments/evaluate_split.py --figure
+
 # Task 2 on arithmetic expressions - do the operators get their own boxes?
 python src/generate_number.py --expressions --count 40     # first, once
 python experiments/evaluate_operators.py
