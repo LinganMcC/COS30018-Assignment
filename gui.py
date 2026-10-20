@@ -1,9 +1,7 @@
 import os
 import queue
 import sys
-import random
 import threading
-import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import numpy as np
@@ -20,7 +18,7 @@ try:
 except ImportError:  
     HAS_DND = False
 
-# CNN backend (models/cnn/gui_backend.py)
+# Model backend for every option (models/cnn/gui_backend.py)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "cnn"))
 import gui_backend as cnn_backend
 
@@ -33,7 +31,7 @@ PRETRAINED_TYPES = (".keras", ".h5", ".pt", ".pth", ".pkl", ".joblib")
 BG = "gainsboro"
 HEADER_BG = "dim gray"
 
-# BACKEND PLACEHOLDERS  -  replace with the team's real implementations
+# Panel preprocessing / segmentation (kept for reference; recognition uses the project pipeline)
 def otsu_threshold(arr):
     """Otsu's method on a uint8 array. Returns a threshold in 0-255."""
     hist = np.bincount(arr.ravel(), minlength=256).astype(float)
@@ -107,42 +105,22 @@ def segment(processed, method="Vertical projection", min_width=3):
     return digits, boxes
 
 def train_model(model_name, params, on_epoch, stop_event):
-    """PLACEHOLDER. Train `model_name` on MNIST.
+    """Train `model_name`: calls on_epoch(epoch, loss, accuracy) after every
+    epoch and stops early if stop_event.is_set(). Returns the trained model.
 
-    Call on_epoch(epoch, loss, accuracy) after every epoch and stop early if
-    stop_event.is_set(). Return the trained model object.
+    CNN / MLP use the epochs, batch size, learning rate and augmentation set
+    here; SVM / Random Forest are fitted once with their tuned settings
+    (models/cnn/gui_backend.py).
     """
-    if cnn_backend.is_cnn(model_name):  # CNN: real training
-        return cnn_backend.train_cnn(model_name, params, on_epoch, stop_event)
-    loss, acc = 2.3, 0.1
-    for epoch in range(1, params["epochs"] + 1):
-        if stop_event.is_set():
-            break
-        time.sleep(0.4)  # <- real training goes here
-        loss *= 0.6
-        acc += (1 - acc) * 0.5
-        on_epoch(epoch, loss, acc)
-    return object()
-
-def predict_digits(model_name, model, digit_images):
-    """PLACEHOLDER. Return a list of (label, confidence) for each 28x28 image."""
-    return [(random.randint(0, 9), random.uniform(0.5, 1.0)) for _ in digit_images]
+    return cnn_backend.train_model(model_name, params, on_epoch, stop_event)
 
 def load_pretrained(model_name, path):
-    """PLACEHOLDER. Load a saved model for `model_name` from `path` and return
-    it (the same kind of object train_model() returns).
-
-    Typical implementations, depending on the model type:
-      CNN / MLP (Keras)  : tf.keras.models.load_model(path)
-      CNN / MLP (PyTorch): model = MyNet(); model.load_state_dict(torch.load(path)); model.eval()
-      SVM / Random Forest: joblib.load(path)
-    Raise an exception if the file is invalid; the GUI will show the error.
-    """
+    """Load a saved model for `model_name` from `path` (.keras for CNN / MLP,
+    .joblib for SVM / Random Forest). Raises if the file is invalid; the GUI
+    shows the error."""
     if not os.path.isfile(path):
         raise FileNotFoundError(path)
-    if cnn_backend.is_cnn(model_name):  # CNN: load .keras
-        return cnn_backend.load_cnn(model_name, path)
-    return object()
+    return cnn_backend.load_model(model_name, path)
 
 # GUI
 class HNRSApp:
@@ -416,36 +394,12 @@ class HNRSApp:
                                     "or switch to Pretrained.")
             return
 
-        if cnn_backend.is_cnn(model_name):  # CNN uses its own pipeline
-            self._recognise_cnn(model_name)
-            return
-
-        # Task 1 - Preprocessing
-        self.processed_image = preprocess(
-            self.original_image, self.invert_var.get(), self.blur_var.get(),
-            self.thresh_var.get(), int(self.thresh_val_var.get()),
-        )
-        self._show(self.pre_label, "pre", self.processed_image, (700, 380))
-
-        # Task 2 - Segmentation
-        self.digit_images, self.boxes = segment(self.processed_image, self.seg_var.get(), self.minw_var.get())
-
-        if not self.digit_images:
-            self.result_var.set("?")
-            self.detail_var.set("No digits found. Try different preprocessing settings.")
-            return
-
-        # Task 3 - Classification
-        results = predict_digits(model_name, self.models[model_name], self.digit_images)
-        self._show_segments(results)
-
-        number = "".join(str(lbl) for lbl, _ in results)
-        self.result_var.set(number)
-        self.detail_var.set("Confidence per digit:\n" + "  ".join(f"{l}: {c:.0%}" for l, c in results))
-        self._set_status(f"Recognised {len(results)} digit(s) using {model_name}.")
+        self._recognise_cnn(model_name)
 
     def _recognise_cnn(self, model_name):
-        """CNN recognition; the panel's preprocessing/segmentation settings are not used."""
+        """Every model reads the image through the project pipeline (contours
+        segmentation -> otsu_mnist_box -> classifier); the panel's
+        preprocessing/segmentation settings are not used."""
         try:
             out = cnn_backend.recognise_cnn(self.models[model_name], self.original_image)
         except Exception as e:
@@ -518,8 +472,8 @@ class HNRSApp:
                     self.load_pretrained_file(os.path.join(PRETRAINED_DIR, f))
                     return
                 
-        if cnn_backend.is_cnn(name) and cnn_backend.default_checkpoint(name).is_file():
-            # Nothing in pretrained_models/: use the frozen CNN
+        if cnn_backend.is_supported(name) and cnn_backend.default_checkpoint(name).is_file():
+            # Nothing in pretrained_models/: use the frozen model in models/checkpoints/
             self.weights_var.set("Loading... (first load takes a few seconds)")
             self.root.update_idletasks()
             self.load_pretrained_file(str(cnn_backend.default_checkpoint(name)))
@@ -557,11 +511,17 @@ class HNRSApp:
         self.history = {"loss": [], "acc": []}
         self._redraw_curves()
         self.stop_event.clear()
-        self.progress.config(maximum=params["epochs"], value=0)
+        self.progress.config(maximum=cnn_backend.training_steps(model_name, params), value=0)
         self.train_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.nb.select(self.tab_train)
-        self._set_status(f"Training {model_name}...")
+        if cnn_backend.is_classical(model_name):
+            self._set_status(f"Training {model_name} on {cnn_backend.CLASSICAL_TRAIN_IMAGES:,} "
+                             "MNIST images with its tuned settings (SVM about 3 minutes, Random Forest "
+                             "under 1; "
+                             "epochs, batch size and learning rate do not apply)...")
+        else:
+            self._set_status(f"Training {model_name}...")
 
         def worker():
             def on_epoch(epoch, loss, acc):
