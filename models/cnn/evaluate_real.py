@@ -1,17 +1,5 @@
-"""Every final model on the team's real handwriting (Sprint 4).
-
-MNIST test accuracy is ~99 % for all four architectures, so it cannot
-separate them. This script runs each model through the real pipeline -
-John's segmentation and preprocessing, then the model - on the photos in
-data/custom_samples/ and reports:
-
-    digit accuracy      single-digit photos (digits/3_01.jpg -> label 3)
-    exact-number        whole number read exactly right (numbers/94026_01.jpg)
-    digit (count ok)    per-digit accuracy on numbers whose digit count was right,
-                        which separates recognition errors from segmentation errors
-
+"""
 ext_best is run twice: unrestricted (it may answer "/" for a "1") and with the
-symbol classes switched off, which is how the GUI should use it for numbers.
 
 Usage (from models/cnn/):
     python evaluate_real.py
@@ -19,16 +7,12 @@ Usage (from models/cnn/):
         -> also scores those tuning runs (checkpoints/tuning/, local only) and writes
            real_handwriting_runs.csv; used to ask whether stronger augmentation
            helps on real photos even though it did not help on MNIST
-
 Outputs:
     models/experiments/eval/real_handwriting.csv
     models/experiments/eval/real_handwriting.md
     models/experiments/eval/real_handwriting_errors.csv   every wrong single digit
     models/experiments/eval/real_vs_mnist.png       MNIST test vs real digits, per model
     models/experiments/eval/real_errors_cnn_best.png  the photos cnn_best gets wrong
-
-70 photos is a small sample: one photo is 1.4 points, so the table also
-gives a 95 % Wilson interval. Differences of a few points are not meaningful.
 """
 from __future__ import annotations
 
@@ -53,8 +37,10 @@ MODELS: List[Tuple[str, str, Optional[tuple]]] = [
     ("LeNet-5 (tuned)", "tuning/pm_lenet_best", None),
     ("ResNet (tuned)", "tuning/pm_resnet_best", None),
     ("VGG-deep = cnn_best", "cnn_best", None),
-    ("ext_best, digits only", "ext_best", Recogniser.DIGITS),
-    ("ext_best, all 16 classes", "ext_best", None),
+    ("ext_best (v3, retrained), digits only", "ext_best", Recogniser.DIGITS),
+    ("ext_best (v3, retrained), all 16 classes", "ext_best", None),
+    ("ext_v2 (before retraining), digits only", "ext_v2", Recogniser.DIGITS),
+    ("ext_v2 (before retraining), all 16 classes", "ext_v2", None),
     ("Sprint 2 LeNet (cnn_lenet)", "cnn_lenet", None),
 ]
 
@@ -82,7 +68,7 @@ def load_samples(folder: Path, single: bool) -> List[Tuple[str, np.ndarray, str]
 SUMMARIES = {
     "tuning/pm_mlp_best": "pm_mlp_best", "tuning/pm_lenet_best": "pm_lenet_best",
     "tuning/pm_resnet_best": "pm_resnet_best", "cnn_best": "s3_B5_bs_64",
-    "ext_best": "ext_v2",
+    "ext_best": "ext_v3", "ext_v2": "ext_v2",
 }
 
 
@@ -287,7 +273,7 @@ def main(argv=None) -> None:
            "model; the last column isolates recognition errors."]
     (OUT_DIR / "real_handwriting.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     save_real_vs_mnist([r for r in rows if r["checkpoint"] != "cnn_lenet"
-                        and r["model"] != "ext_best, all 16 classes"],
+                        and "all 16 classes" not in r["model"]],
                        len(digits), OUT_DIR / "real_vs_mnist.png")
     if digits:
         try:

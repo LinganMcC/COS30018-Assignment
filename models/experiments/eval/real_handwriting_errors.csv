@@ -1,77 +1,278 @@
 model,file,true,predicted,confidence
+MLP (tuned),0_15.jpg,0,1,0.604
 MLP (tuned),1_06.jpg,1,2,0.747
 MLP (tuned),2_01.jpg,2,1,0.824
 MLP (tuned),2_06.jpg,2,1,0.496
+MLP (tuned),2_09.jpg,2,1,0.491
+MLP (tuned),2_10.jpg,2,1,0.814
+MLP (tuned),2_11.jpg,2,1,0.707
+MLP (tuned),2_12.jpg,2,1,0.826
+MLP (tuned),2_13.jpg,2,1,0.944
+MLP (tuned),2_15.jpg,2,1,0.720
 MLP (tuned),3_02.jpg,3,7,0.689
 MLP (tuned),3_04.jpg,3,5,0.676
 MLP (tuned),3_06.jpg,3,7,0.850
 MLP (tuned),3_07.jpg,3,5,0.576
+MLP (tuned),3_12.jpg,3,5,0.528
+MLP (tuned),3_13.jpg,3,5,0.762
+MLP (tuned),3_14.jpg,3,5,0.790
+MLP (tuned),3_15.jpg,3,1,0.613
 MLP (tuned),4_01.jpg,4,7,0.368
 MLP (tuned),4_02.jpg,4,1,0.431
 MLP (tuned),4_05.jpg,4,9,0.515
 MLP (tuned),4_06.jpg,4,5,0.600
+MLP (tuned),4_08.jpg,4,5,0.420
+MLP (tuned),4_09.jpg,4,1,0.601
+MLP (tuned),4_10.jpg,4,1,0.665
+MLP (tuned),4_11.jpg,4,1,0.918
+MLP (tuned),4_12.jpg,4,5,0.599
+MLP (tuned),4_13.jpg,4,5,0.626
+MLP (tuned),4_14.jpg,4,1,0.464
+MLP (tuned),4_15.jpg,4,5,0.434
 MLP (tuned),5_06.jpg,5,4,0.810
+MLP (tuned),5_14.jpg,5,1,0.416
+MLP (tuned),5_15.jpg,5,1,0.593
+MLP (tuned),6_08.jpg,6,1,0.521
+MLP (tuned),6_09.jpg,6,5,0.655
+MLP (tuned),6_10.jpg,6,5,0.515
+MLP (tuned),6_12.jpg,6,5,0.395
+MLP (tuned),6_14.jpg,6,5,0.548
+MLP (tuned),6_15.jpg,6,1,0.675
 MLP (tuned),7_01.jpg,7,2,0.546
 MLP (tuned),7_03.jpg,7,2,0.577
 MLP (tuned),7_05.jpg,7,2,0.921
+MLP (tuned),7_08.jpg,7,1,0.728
+MLP (tuned),7_10.jpg,7,1,0.338
+MLP (tuned),7_11.jpg,7,2,0.402
+MLP (tuned),7_14.jpg,7,2,0.436
 MLP (tuned),8_02.jpg,8,7,0.605
 MLP (tuned),8_04.jpg,8,5,0.792
+MLP (tuned),8_08.jpg,8,1,0.522
+MLP (tuned),8_09.jpg,8,5,0.823
+MLP (tuned),8_10.jpg,8,5,0.440
+MLP (tuned),8_11.jpg,8,5,0.896
+MLP (tuned),8_12.jpg,8,5,0.857
+MLP (tuned),8_13.jpg,8,5,0.547
+MLP (tuned),8_14.jpg,8,2,0.440
+MLP (tuned),8_15.jpg,8,1,0.864
 MLP (tuned),9_01.jpg,9,7,0.620
+MLP (tuned),9_08.jpg,9,7,0.639
+MLP (tuned),9_09.jpg,9,5,0.500
+MLP (tuned),9_10.jpg,9,5,0.560
+MLP (tuned),9_11.jpg,9,7,0.637
+MLP (tuned),9_12.jpg,9,7,0.573
+MLP (tuned),9_13.jpg,9,5,0.361
+MLP (tuned),9_14.jpg,9,3,0.321
+LeNet-5 (tuned),0_15.jpg,0,3,0.424
 LeNet-5 (tuned),1_05.jpg,1,7,0.583
 LeNet-5 (tuned),1_06.jpg,1,2,0.703
+LeNet-5 (tuned),1_15.jpg,1,3,0.536
 LeNet-5 (tuned),3_06.jpg,3,7,0.999
+LeNet-5 (tuned),3_13.jpg,3,5,0.979
 LeNet-5 (tuned),4_05.jpg,4,9,0.910
 LeNet-5 (tuned),4_06.jpg,4,2,0.965
+LeNet-5 (tuned),4_11.jpg,4,9,0.587
+LeNet-5 (tuned),4_14.jpg,4,7,0.269
+LeNet-5 (tuned),4_15.jpg,4,2,0.251
+LeNet-5 (tuned),5_14.jpg,5,2,0.543
+LeNet-5 (tuned),6_14.jpg,6,5,0.270
+LeNet-5 (tuned),6_15.jpg,6,8,0.495
 LeNet-5 (tuned),7_05.jpg,7,2,0.909
 LeNet-5 (tuned),7_06.jpg,7,2,0.885
+LeNet-5 (tuned),7_14.jpg,7,2,0.580
+LeNet-5 (tuned),7_15.jpg,7,2,0.425
 LeNet-5 (tuned),8_02.jpg,8,7,0.537
+LeNet-5 (tuned),8_14.jpg,8,2,0.615
+LeNet-5 (tuned),8_15.jpg,8,1,0.406
 LeNet-5 (tuned),9_01.jpg,9,3,0.805
+LeNet-5 (tuned),9_13.jpg,9,8,0.307
+LeNet-5 (tuned),9_14.jpg,9,2,0.616
+ResNet (tuned),0_15.jpg,0,1,0.327
 ResNet (tuned),1_06.jpg,1,7,0.497
+ResNet (tuned),1_14.jpg,1,5,0.500
 ResNet (tuned),2_06.jpg,2,0,0.315
+ResNet (tuned),2_14.jpg,2,3,0.942
+ResNet (tuned),2_15.jpg,2,3,0.291
 ResNet (tuned),3_06.jpg,3,7,0.735
 ResNet (tuned),4_05.jpg,4,9,0.680
 ResNet (tuned),4_06.jpg,4,7,0.294
+ResNet (tuned),4_14.jpg,4,1,0.437
 ResNet (tuned),5_04.jpg,5,3,0.480
 ResNet (tuned),5_06.jpg,5,4,0.678
+ResNet (tuned),5_14.jpg,5,3,0.482
+ResNet (tuned),5_15.jpg,5,1,0.375
+ResNet (tuned),6_14.jpg,6,5,0.281
 ResNet (tuned),7_05.jpg,7,2,0.830
 ResNet (tuned),7_06.jpg,7,2,0.360
+ResNet (tuned),7_14.jpg,7,3,0.605
+ResNet (tuned),7_15.jpg,7,8,0.354
 ResNet (tuned),8_02.jpg,8,7,0.885
+ResNet (tuned),8_14.jpg,8,4,0.380
+ResNet (tuned),8_15.jpg,8,1,0.561
+ResNet (tuned),9_13.jpg,9,3,0.505
+ResNet (tuned),9_14.jpg,9,1,0.250
+VGG-deep = cnn_best,0_15.jpg,0,1,0.572
 VGG-deep = cnn_best,1_06.jpg,1,2,0.730
+VGG-deep = cnn_best,1_14.jpg,1,2,0.591
 VGG-deep = cnn_best,3_06.jpg,3,7,0.995
+VGG-deep = cnn_best,3_15.jpg,3,1,0.461
 VGG-deep = cnn_best,4_06.jpg,4,5,0.574
+VGG-deep = cnn_best,4_14.jpg,4,2,0.839
+VGG-deep = cnn_best,4_15.jpg,4,1,0.757
 VGG-deep = cnn_best,5_06.jpg,5,6,0.590
+VGG-deep = cnn_best,5_14.jpg,5,2,0.943
+VGG-deep = cnn_best,5_15.jpg,5,1,0.937
 VGG-deep = cnn_best,7_05.jpg,7,2,0.759
 VGG-deep = cnn_best,7_06.jpg,7,2,0.951
+VGG-deep = cnn_best,7_14.jpg,7,2,0.842
+VGG-deep = cnn_best,7_15.jpg,7,2,0.762
 VGG-deep = cnn_best,8_02.jpg,8,7,0.901
-"ext_best, digits only",0_05.jpg,0,6,0.946
-"ext_best, digits only",2_06.jpg,2,7,0.856
-"ext_best, digits only",3_06.jpg,3,7,0.987
-"ext_best, digits only",4_06.jpg,4,5,0.926
-"ext_best, digits only",5_04.jpg,5,3,0.758
-"ext_best, digits only",5_06.jpg,5,4,0.935
-"ext_best, digits only",7_05.jpg,7,2,0.916
-"ext_best, digits only",7_06.jpg,7,2,0.789
-"ext_best, digits only",8_02.jpg,8,7,0.905
-"ext_best, digits only",9_01.jpg,9,3,0.865
-"ext_best, all 16 classes",0_05.jpg,0,6,0.946
-"ext_best, all 16 classes",1_06.jpg,1,-,0.802
-"ext_best, all 16 classes",2_06.jpg,2,7,0.854
-"ext_best, all 16 classes",3_06.jpg,3,7,0.987
-"ext_best, all 16 classes",4_06.jpg,4,5,0.466
-"ext_best, all 16 classes",5_04.jpg,5,3,0.756
-"ext_best, all 16 classes",5_06.jpg,5,4,0.935
-"ext_best, all 16 classes",7_05.jpg,7,*,0.937
-"ext_best, all 16 classes",7_06.jpg,7,2,0.552
-"ext_best, all 16 classes",8_02.jpg,8,7,0.899
-"ext_best, all 16 classes",9_01.jpg,9,3,0.865
+VGG-deep = cnn_best,8_14.jpg,8,2,0.766
+VGG-deep = cnn_best,8_15.jpg,8,1,0.979
+VGG-deep = cnn_best,9_13.jpg,9,2,0.589
+VGG-deep = cnn_best,9_14.jpg,9,2,0.529
+"ext_best (v3, retrained), digits only",1_06.jpg,1,2,0.549
+"ext_best (v3, retrained), digits only",1_14.jpg,1,4,0.576
+"ext_best (v3, retrained), digits only",2_06.jpg,2,9,0.522
+"ext_best (v3, retrained), digits only",3_06.jpg,3,7,0.873
+"ext_best (v3, retrained), digits only",3_15.jpg,3,2,0.817
+"ext_best (v3, retrained), digits only",4_05.jpg,4,9,0.687
+"ext_best (v3, retrained), digits only",4_06.jpg,4,5,0.863
+"ext_best (v3, retrained), digits only",4_15.jpg,4,8,0.322
+"ext_best (v3, retrained), digits only",5_04.jpg,5,3,0.534
+"ext_best (v3, retrained), digits only",5_06.jpg,5,4,0.710
+"ext_best (v3, retrained), digits only",5_14.jpg,5,2,0.719
+"ext_best (v3, retrained), digits only",5_15.jpg,5,9,0.555
+"ext_best (v3, retrained), digits only",6_14.jpg,6,4,0.574
+"ext_best (v3, retrained), digits only",7_05.jpg,7,2,0.842
+"ext_best (v3, retrained), digits only",7_06.jpg,7,2,0.985
+"ext_best (v3, retrained), digits only",7_14.jpg,7,2,0.984
+"ext_best (v3, retrained), digits only",7_15.jpg,7,2,0.988
+"ext_best (v3, retrained), digits only",8_02.jpg,8,7,0.959
+"ext_best (v3, retrained), digits only",8_15.jpg,8,1,0.647
+"ext_best (v3, retrained), digits only",9_13.jpg,9,2,0.419
+"ext_best (v3, retrained), digits only",9_14.jpg,9,2,0.549
+"ext_best (v3, retrained), all 16 classes",1_06.jpg,1,-,0.886
+"ext_best (v3, retrained), all 16 classes",1_14.jpg,1,4,0.505
+"ext_best (v3, retrained), all 16 classes",1_15.jpg,1,*,0.985
+"ext_best (v3, retrained), all 16 classes",2_06.jpg,2,9,0.518
+"ext_best (v3, retrained), all 16 classes",3_06.jpg,3,7,0.873
+"ext_best (v3, retrained), all 16 classes",3_15.jpg,3,2,0.809
+"ext_best (v3, retrained), all 16 classes",4_05.jpg,4,9,0.687
+"ext_best (v3, retrained), all 16 classes",4_06.jpg,4,5,0.547
+"ext_best (v3, retrained), all 16 classes",4_15.jpg,4,*,0.993
+"ext_best (v3, retrained), all 16 classes",5_04.jpg,5,3,0.534
+"ext_best (v3, retrained), all 16 classes",5_06.jpg,5,4,0.710
+"ext_best (v3, retrained), all 16 classes",5_14.jpg,5,2,0.715
+"ext_best (v3, retrained), all 16 classes",5_15.jpg,5,9,0.555
+"ext_best (v3, retrained), all 16 classes",6_14.jpg,6,4,0.376
+"ext_best (v3, retrained), all 16 classes",7_05.jpg,7,*,0.989
+"ext_best (v3, retrained), all 16 classes",7_06.jpg,7,*,0.916
+"ext_best (v3, retrained), all 16 classes",7_14.jpg,7,2,0.981
+"ext_best (v3, retrained), all 16 classes",7_15.jpg,7,*,0.994
+"ext_best (v3, retrained), all 16 classes",8_02.jpg,8,7,0.952
+"ext_best (v3, retrained), all 16 classes",8_15.jpg,8,1,0.513
+"ext_best (v3, retrained), all 16 classes",9_13.jpg,9,2,0.419
+"ext_best (v3, retrained), all 16 classes",9_14.jpg,9,2,0.546
+"ext_v2 (before retraining), digits only",0_15.jpg,0,1,0.394
+"ext_v2 (before retraining), digits only",1_13.jpg,1,4,0.513
+"ext_v2 (before retraining), digits only",1_14.jpg,1,5,0.380
+"ext_v2 (before retraining), digits only",2_06.jpg,2,0,0.537
+"ext_v2 (before retraining), digits only",2_12.jpg,2,8,0.576
+"ext_v2 (before retraining), digits only",2_15.jpg,2,1,0.869
+"ext_v2 (before retraining), digits only",3_06.jpg,3,7,0.936
+"ext_v2 (before retraining), digits only",3_13.jpg,3,5,0.586
+"ext_v2 (before retraining), digits only",3_15.jpg,3,1,0.478
+"ext_v2 (before retraining), digits only",4_06.jpg,4,5,0.979
+"ext_v2 (before retraining), digits only",4_14.jpg,4,1,0.583
+"ext_v2 (before retraining), digits only",4_15.jpg,4,1,0.509
+"ext_v2 (before retraining), digits only",5_06.jpg,5,4,0.575
+"ext_v2 (before retraining), digits only",5_14.jpg,5,8,0.263
+"ext_v2 (before retraining), digits only",5_15.jpg,5,1,0.510
+"ext_v2 (before retraining), digits only",6_15.jpg,6,5,0.406
+"ext_v2 (before retraining), digits only",7_05.jpg,7,2,0.643
+"ext_v2 (before retraining), digits only",7_06.jpg,7,2,0.937
+"ext_v2 (before retraining), digits only",7_08.jpg,7,1,0.825
+"ext_v2 (before retraining), digits only",7_14.jpg,7,2,0.504
+"ext_v2 (before retraining), digits only",7_15.jpg,7,2,0.693
+"ext_v2 (before retraining), digits only",8_15.jpg,8,1,0.500
+"ext_v2 (before retraining), digits only",9_01.jpg,9,3,0.887
+"ext_v2 (before retraining), digits only",9_13.jpg,9,3,0.479
+"ext_v2 (before retraining), digits only",9_14.jpg,9,1,0.460
+"ext_v2 (before retraining), all 16 classes",0_15.jpg,0,+,0.491
+"ext_v2 (before retraining), all 16 classes",1_04.jpg,1,(,0.599
+"ext_v2 (before retraining), all 16 classes",1_05.jpg,1,-,0.406
+"ext_v2 (before retraining), all 16 classes",1_06.jpg,1,-,0.840
+"ext_v2 (before retraining), all 16 classes",1_08.jpg,1,(,0.540
+"ext_v2 (before retraining), all 16 classes",1_09.jpg,1,+,0.955
+"ext_v2 (before retraining), all 16 classes",1_10.jpg,1,(,0.510
+"ext_v2 (before retraining), all 16 classes",1_11.jpg,1,(,0.777
+"ext_v2 (before retraining), all 16 classes",1_12.jpg,1,(,0.760
+"ext_v2 (before retraining), all 16 classes",1_13.jpg,1,+,0.924
+"ext_v2 (before retraining), all 16 classes",1_14.jpg,1,*,0.602
+"ext_v2 (before retraining), all 16 classes",1_15.jpg,1,+,0.443
+"ext_v2 (before retraining), all 16 classes",2_06.jpg,2,0,0.497
+"ext_v2 (before retraining), all 16 classes",2_08.jpg,2,+,0.982
+"ext_v2 (before retraining), all 16 classes",2_09.jpg,2,+,0.581
+"ext_v2 (before retraining), all 16 classes",2_12.jpg,2,8,0.391
+"ext_v2 (before retraining), all 16 classes",2_14.jpg,2,+,0.920
+"ext_v2 (before retraining), all 16 classes",2_15.jpg,2,+,0.505
+"ext_v2 (before retraining), all 16 classes",3_06.jpg,3,7,0.936
+"ext_v2 (before retraining), all 16 classes",3_07.jpg,3,),0.596
+"ext_v2 (before retraining), all 16 classes",3_13.jpg,3,5,0.586
+"ext_v2 (before retraining), all 16 classes",3_14.jpg,3,+,0.482
+"ext_v2 (before retraining), all 16 classes",3_15.jpg,3,),0.304
+"ext_v2 (before retraining), all 16 classes",4_06.jpg,4,/,0.557
+"ext_v2 (before retraining), all 16 classes",4_08.jpg,4,+,0.996
+"ext_v2 (before retraining), all 16 classes",4_14.jpg,4,+,0.932
+"ext_v2 (before retraining), all 16 classes",4_15.jpg,4,+,0.664
+"ext_v2 (before retraining), all 16 classes",5_04.jpg,5,),0.451
+"ext_v2 (before retraining), all 16 classes",5_06.jpg,5,4,0.575
+"ext_v2 (before retraining), all 16 classes",5_14.jpg,5,+,0.980
+"ext_v2 (before retraining), all 16 classes",5_15.jpg,5,+,0.646
+"ext_v2 (before retraining), all 16 classes",6_14.jpg,6,+,0.831
+"ext_v2 (before retraining), all 16 classes",6_15.jpg,6,+,0.989
+"ext_v2 (before retraining), all 16 classes",7_01.jpg,7,+,0.999
+"ext_v2 (before retraining), all 16 classes",7_02.jpg,7,+,0.557
+"ext_v2 (before retraining), all 16 classes",7_04.jpg,7,+,0.739
+"ext_v2 (before retraining), all 16 classes",7_05.jpg,7,*,1.000
+"ext_v2 (before retraining), all 16 classes",7_06.jpg,7,*,0.995
+"ext_v2 (before retraining), all 16 classes",7_08.jpg,7,(,0.797
+"ext_v2 (before retraining), all 16 classes",7_09.jpg,7,+,0.992
+"ext_v2 (before retraining), all 16 classes",7_10.jpg,7,+,1.000
+"ext_v2 (before retraining), all 16 classes",7_11.jpg,7,+,1.000
+"ext_v2 (before retraining), all 16 classes",7_14.jpg,7,+,0.939
+"ext_v2 (before retraining), all 16 classes",7_15.jpg,7,*,0.955
+"ext_v2 (before retraining), all 16 classes",8_02.jpg,8,+,0.637
+"ext_v2 (before retraining), all 16 classes",8_14.jpg,8,+,0.989
+"ext_v2 (before retraining), all 16 classes",8_15.jpg,8,+,0.962
+"ext_v2 (before retraining), all 16 classes",9_01.jpg,9,3,0.884
+"ext_v2 (before retraining), all 16 classes",9_13.jpg,9,3,0.393
+"ext_v2 (before retraining), all 16 classes",9_14.jpg,9,1,0.376
+Sprint 2 LeNet (cnn_lenet),0_15.jpg,0,2,0.426
 Sprint 2 LeNet (cnn_lenet),1_05.jpg,1,7,0.485
 Sprint 2 LeNet (cnn_lenet),1_06.jpg,1,2,0.887
+Sprint 2 LeNet (cnn_lenet),1_09.jpg,1,4,0.473
+Sprint 2 LeNet (cnn_lenet),1_15.jpg,1,5,0.384
 Sprint 2 LeNet (cnn_lenet),2_06.jpg,2,8,0.866
+Sprint 2 LeNet (cnn_lenet),2_15.jpg,2,9,0.232
 Sprint 2 LeNet (cnn_lenet),3_06.jpg,3,7,1.000
+Sprint 2 LeNet (cnn_lenet),3_15.jpg,3,5,0.295
 Sprint 2 LeNet (cnn_lenet),4_05.jpg,4,9,0.507
 Sprint 2 LeNet (cnn_lenet),4_06.jpg,4,5,0.900
+Sprint 2 LeNet (cnn_lenet),4_14.jpg,4,2,0.778
+Sprint 2 LeNet (cnn_lenet),4_15.jpg,4,8,0.482
 Sprint 2 LeNet (cnn_lenet),5_06.jpg,5,4,1.000
+Sprint 2 LeNet (cnn_lenet),5_09.jpg,5,9,0.658
+Sprint 2 LeNet (cnn_lenet),6_14.jpg,6,5,0.356
+Sprint 2 LeNet (cnn_lenet),6_15.jpg,6,1,0.252
 Sprint 2 LeNet (cnn_lenet),7_03.jpg,7,2,0.785
 Sprint 2 LeNet (cnn_lenet),7_05.jpg,7,2,0.998
+Sprint 2 LeNet (cnn_lenet),7_14.jpg,7,2,0.974
+Sprint 2 LeNet (cnn_lenet),7_15.jpg,7,2,0.426
 Sprint 2 LeNet (cnn_lenet),8_02.jpg,8,7,0.848
+Sprint 2 LeNet (cnn_lenet),8_14.jpg,8,2,0.987
+Sprint 2 LeNet (cnn_lenet),8_15.jpg,8,1,0.820
 Sprint 2 LeNet (cnn_lenet),9_01.jpg,9,3,0.831
+Sprint 2 LeNet (cnn_lenet),9_13.jpg,9,2,0.794
+Sprint 2 LeNet (cnn_lenet),9_14.jpg,9,2,0.353

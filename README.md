@@ -47,6 +47,7 @@ photo ─► preprocessing ─► segmentation ─► digit recognition ─► n
 - [x] Final digit CNN frozen: `models/checkpoints/cnn_best.keras` (deeper VGG, batch 64, 99.62 % test)
 - [x] Extension dataset: operator symbols from HASYv2 + Kaggle (`src/download_symbols.py`)
 - [x] First 16-class model (digits + `+ - * / ( )`): `models/checkpoints/ext_best.keras`
+- [x] Extension model retrained on the team's handwriting (ext_v3 = `ext_best`; 87.5 % exact expressions on held-out writers)
 - [x] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison
 - [x] Per-class precision / recall / F1 and confusion matrices for `ext_best` and `cnn_best`
 - [x] All final models tested on the team's real handwriting (`models/experiments/eval/`)
@@ -229,16 +230,42 @@ The Kaggle part is a manual download: extract `data.rar` into
 ```bash
 # Per-class precision / recall / F1 + confusion matrices (clean and shifted test)
 python evaluate_classes.py                    # ext_best and cnn_best
+python evaluate_classes.py --model ext_v2     # the extension model before retraining
 
 # Every final model on the photos in data/custom_samples/
 python evaluate_real.py
 # ...and the stage A augmentation runs as well (needs checkpoints/tuning/, local only)
 python evaluate_real.py --runs s3_A1_aug_none s3_A2_aug_light s3_A3_aug_medium s3_A4_aug_strong
+
+# Extension: the team's handwritten expressions, in
+# data/custom_samples/expressions/ready/ (*.jpg + labels.csv)
+python evaluate_expressions.py                # ext_best on held-out sheets 3-4, ~2 min
+python evaluate_expressions.py --model ext_v2 --tag _ext_v2_test   # before retraining
+
+# Retraining the extension model on the team's handwriting (Sprint 4)
+python real_symbols.py                        # cut + label real symbols (writer split)
+python ext_finetune.py --run-id ext_v3        # fine-tune ext_v2, ~30 min on CPU
 ```
 
 Results go to `models/experiments/eval/`: `<model>_report.md`, `<model>_per_class.csv`,
 `<model>_confusion.png`, `real_handwriting.md`, `real_vs_mnist.png`,
-`real_errors_cnn_best.png`.
+`real_errors_cnn_best.png`, `expressions_report.md`, `expressions_results.csv`,
+`retraining_report.md`.
+
+**Extension model – retrained (see `models/experiments/eval/retraining_report.md`).**
+`ext_best` is now ext_v3: ext_v2 fine-tuned on real symbols from sheets 1-2 of the
+team's expression photos, with blur / sharpen / binarise / stroke-width augmentation
+and synthetic crossed 7s and flagged 1s. On the 14 writers of sheets 3-4, never used
+in training: exact expression **87.5 %** (ext_v2: 70.8 %), symbol accuracy 97.4 %
+(94.2 %), "1" 99.4 % (68.4 %), "7" 100 % (85.6 %). 89 % of expressions are cut into
+the right number of symbols, so segmentation is now the limit. The previous model is
+kept as `models/checkpoints/ext_v2.keras`.
+
+`evaluate_expressions.py` scores sheets 3-4 by default; `--sheets all` includes the
+training writers and must not be used for report numbers. ext_v2 needed a 3x3 input
+blur (`inference.soften`) to read brackets; ext_v3 is saved with `"input_blur": false`
+and reads crisp crops. Small division dots are merged into their bar in segmentation
+(`segmentation._attach_dots`), which every model uses (`expressions_ablation.md`).
 
 **Where results go**
 
