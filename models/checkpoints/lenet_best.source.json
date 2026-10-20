@@ -1,0 +1,17 @@
+{
+  "source_run": "pm_lenet_best",
+  "selected_by": "per-model tuning grid (models/cnn/configs/sprint3_per_model.json), best validation accuracy",
+  "tuning_log_row": {
+    "timestamp": "2026-10-10T22:08:41",
+    "run_id": "pm_lenet_best",
+    "architecture": "lenet",
+    "learning_rate": "0.001",
+    "batch_size": "128",
+    "epochs": "30",
+    "dropout": "0.3",
+    "val_accuracy": "0.9917",
+    "test_accuracy": "0.9929",
+    "training_time_s": "108.24",
+    "notes": "dataset=mnist; aug=light; robust_acc=0.9809"
+  }
+}

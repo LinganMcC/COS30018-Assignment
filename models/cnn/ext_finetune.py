@@ -30,12 +30,17 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
-from augmentation import build_augmenter, cross_sevens, flag_ones, get_preset, style_augment
+from augmentation import (build_augmenter, cross_sevens, flag_ones, get_preset,
+                          make_shifted_test_set, style_augment)
 from datasets import load_dataset
 from experiment_logger import log_run
 from inference import CHECKPOINTS, resolve_checkpoint
 from real_symbols import LABELS, load_real_symbols
 from trainer import MODELS_DIR, save_history_plot
+
+# Name these runs are filed under in experiments/tuning/*_summary.json, so
+# summarise_tuning.py keeps them apart from the plain MNIST and MNIST+symbols runs.
+DATASET_NAME = "mnist+symbols+real"
 
 
 def build_training_set(data, real_repeat: int, n_synthetic: int, seed: int):
@@ -126,6 +131,7 @@ def main(argv=None):
     model.set_weights(real_val.best_weights)
 
     _, test_acc = model.evaluate(data.x_test, data.y_test, verbose=0)
+    _, robust_acc = model.evaluate(make_shifted_test_set(data.x_test, seed=0), data.y_test, verbose=0)
     h = {k: [float(v) for v in vals] for k, vals in hist.history.items()}
     ckpt_dir, exp_dir = CHECKPOINTS / "tuning", MODELS_DIR / "experiments" / "tuning"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -134,13 +140,21 @@ def main(argv=None):
     model.save(ckpt)
     ckpt.with_suffix(".labels.json").write_text(json.dumps(
         {"label_names": LABELS, "dataset": "mnist+symbols",   # class set / test data
-         "trained_on": "mnist+symbols+real (team handwriting, sheets 1-2)", "input_blur": False}, indent=2))
+         "trained_on": f"{DATASET_NAME} (team handwriting, sheets 1-2)", "input_blur": False}, indent=2))
     (exp_dir / f"{args.run_id}_history.json").write_text(json.dumps(h, indent=2))
     save_history_plot(h, f"vgg_deep fine-tune - {args.run_id}", exp_dir / f"{args.run_id}_history.png")
-    summary = {"config": vars(args), "best_epoch": real_val.best_epoch + 1,
+    # Same schema as trainer.py summaries, so summarise_tuning.py can tabulate
+    # these runs (--dataset mnist+symbols+real) without mixing them with others.
+    config = {"run_id": args.run_id, "arch": "vgg_deep", "dataset": DATASET_NAME,
+              "augmentation": "light" if args.no_style else "light+style",
+              "learning_rate": args.lr, "batch_size": args.batch_size, "dropout": 0.5,
+              "max_epochs": args.epochs, "seed": args.seed, "start": args.start,
+              "real_repeat": args.real_repeat, "synthetic": args.synthetic}
+    summary = {"config": config, "best_epoch": real_val.best_epoch + 1,
                "val_real_accuracy": h["val_real_accuracy"][real_val.best_epoch],
                "val_accuracy": h["val_accuracy"][real_val.best_epoch],
-               "test_accuracy": float(test_acc), "training_time_s": seconds,
+               "test_accuracy": float(test_acc), "robust_test_accuracy": float(robust_acc),
+               "epochs_run": len(h["loss"]), "training_time_s": seconds,
                "training_images": int(len(x)), "checkpoint": str(ckpt)}
     (exp_dir / f"{args.run_id}_summary.json").write_text(json.dumps(summary, indent=2))
     if not args.limit:
@@ -148,7 +162,7 @@ def main(argv=None):
                 float(test_acc), seconds, val_accuracy=summary["val_accuracy"],
                 notes=(f"fine-tune of {args.start}; real x{args.real_repeat}; "
                        f"style={'off' if args.no_style else 'on'}; "
-                       f"val_real={summary['val_real_accuracy']:.4f}; dataset=mnist+symbols+real"),
+                       f"val_real={summary['val_real_accuracy']:.4f}; dataset={DATASET_NAME}"),
                 log_path=MODELS_DIR / "experiments" / "tuning_log.csv")
     print(json.dumps({k: v for k, v in summary.items() if k != "config"}, indent=2))
 

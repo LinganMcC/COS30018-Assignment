@@ -75,3 +75,79 @@ def test_operator_option_rejects_a_digit_only_file(tmp_path):
     with pytest.raises(ValueError):
         gb.load_cnn("CNN + operators", str(path))
     assert gb.load_cnn("CNN", str(path)).labels == rec.labels
+
+
+# MLP / SVM / Random Forest options
+
+GUI_OPTIONS = ["CNN", "CNN + operators", "MLP", "SVM", "Random Forest"]   # gui.MODEL_OPTIONS
+
+
+def test_every_gui_option_has_a_backend():
+    assert all(gb.is_supported(name) for name in GUI_OPTIONS)
+    assert gb.is_classical("SVM") and gb.is_classical("Random Forest")
+    assert not gb.is_classical("MLP") and not gb.is_cnn("MLP")
+    assert gb.default_checkpoint("SVM").name == "hog_svm.joblib"
+    assert gb.default_checkpoint("Random Forest").name == "hog_rf.joblib"
+    assert gb.default_checkpoint("MLP").name == "mlp_best.keras"
+    assert gb.training_steps("SVM", {"epochs": 10}) == 1
+    assert gb.training_steps("MLP", {"epochs": 10}) == 10
+
+
+def _tiny_baseline(key="hog_svm"):
+    """A HOG classifier fitted on the synthetic squares (no MNIST needed)."""
+    b = gb._baselines()
+    data = _synthetic()
+    clf = b.make_classifier("svm" if key == "hog_svm" else "rf",
+                            {"C": 5.0, "gamma": "scale"} if key == "hog_svm"
+                            else {"n_estimators": 20, "max_features": "sqrt",
+                                  "min_samples_leaf": 1},
+                            b.hog_features(data.x_train, "hog7"))
+    clf.fit(b.hog_features(data.x_train, "hog7"), data.y_train)
+    return b.Baseline(key, "hog7", clf)
+
+
+def test_classical_model_reads_a_photo_through_the_same_pipeline():
+    rec = gb.classical_recogniser(_tiny_baseline(), "hog_svm")
+    out = gb.recognise(rec, _photo("38"))
+    assert len(out["text"]) == len(out["results"]) == len(out["boxes"]) == 2
+    assert all(ch in "0123456789" for ch in out["text"])
+    assert all(0.0 <= c <= 1.0 for _, c in out["results"])
+    assert out["thumbs"][0].size == (28, 28)
+
+
+@pytest.mark.parametrize("option,key", [("SVM", "hog_svm"), ("Random Forest", "hog_rf")])
+def test_train_classical_reports_once_saves_and_reloads(tmp_path, option, key):
+    seen = []
+    rec = gb.train_model(option, {"epochs": 5}, lambda *a: seen.append(a),
+                         threading.Event(), data=_synthetic(), output_root=tmp_path)
+    assert len(seen) == 1 and seen[0][0] == 1 and 0.0 <= seen[0][2] <= 1.0
+    saved = list((tmp_path / "checkpoints").glob(f"gui_{key}_*.joblib"))
+    assert len(saved) == 1
+    again = gb.load_model(option, str(saved[0]))
+    patches = _synthetic().x_test
+    np.testing.assert_allclose(again.probabilities(patches), rec.probabilities(patches))
+
+
+def test_classical_option_rejects_the_other_classical_model(tmp_path):
+    import joblib
+    path = tmp_path / "forest.joblib"
+    joblib.dump(_tiny_baseline("hog_rf"), path)
+    with pytest.raises(ValueError):
+        gb.load_model("SVM", str(path))
+    assert gb.load_model("Random Forest", str(path)).labels == DEFAULT_LABELS
+
+
+def test_train_mlp_always_uses_the_mlp_architecture(tmp_path):
+    params = {"epochs": 1, "batch_size": 32, "learning_rate": 1e-3,
+              "arch": "vgg_deep", "augmentation": "none"}    # CNN arch box is ignored
+    gb.train_model("MLP", params, lambda *a: None, threading.Event(),
+                   data=_synthetic(), output_root=tmp_path)
+    assert list((tmp_path / "checkpoints" / "tuning").glob("gui_mlp_*.keras"))
+
+
+@pytest.mark.parametrize("option", ["MLP", "SVM", "Random Forest"])
+def test_frozen_models_load_and_read_a_photo(option):
+    if not gb.default_checkpoint(option).is_file():
+        pytest.skip(f"{gb.default_checkpoint(option).name} not in models/checkpoints/")
+    out = gb.recognise(gb.load_model(option), _photo("38"))
+    assert len(out["results"]) == 2

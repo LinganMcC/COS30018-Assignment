@@ -19,7 +19,10 @@ DEFAULT_LABELS = [str(d) for d in range(10)]   # models trained before label fil
 
 # Frozen checkpoints the team should load (see README section 6).
 FROZEN = {
-    "cnn_best": "digits 0-9 - deeper VGG, tuned (run s3_B5_bs_64)",
+    "cnn_best": "digits 0-9 - deeper VGG, tuned (run s3_B5_bs_64)  <- the digit model the system uses",
+    "lenet_best": "digits 0-9 - LeNet-5, tuned (run pm_lenet_best), for the model comparison",
+    "resnet_best": "digits 0-9 - small ResNet, tuned (run pm_resnet_best), for the model comparison",
+    "mlp_best": "digits 0-9 - MLP, no convolutions (run pm_mlp_best), for the model comparison",
     "ext_best": "digits + operators (16 classes) - deeper VGG, retrained on team handwriting (run ext_v3)",
     "ext_v2": "previous ext_best, MNIST + symbol datasets only (needs the input blur)",
 }
@@ -140,7 +143,7 @@ class Recogniser:
         probs = self.probabilities(patches, allowed)
         out = []
         for p in probs:
-            order = np.argsort(p)[::-1][:3]
+            order = np.argsort(-p, kind="stable")[:3]   # ties -> lower class, like argmax
             out.append({
                 "label": self.labels[order[0]],
                 "confidence": float(p[order[0]]),

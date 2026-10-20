@@ -33,9 +33,9 @@ IMAGE_TYPES = {".png", ".jpg", ".jpeg"}
 # (display name, checkpoint, allowed classes). Per-model "best" runs live in
 # checkpoints/tuning/ which is not committed; missing ones are skipped.
 MODELS: List[Tuple[str, str, Optional[tuple]]] = [
-    ("MLP (tuned)", "tuning/pm_mlp_best", None),
-    ("LeNet-5 (tuned)", "tuning/pm_lenet_best", None),
-    ("ResNet (tuned)", "tuning/pm_resnet_best", None),
+    ("MLP (tuned)", "mlp_best", None),
+    ("LeNet-5 (tuned)", "lenet_best", None),
+    ("ResNet (tuned)", "resnet_best", None),
     ("VGG-deep = cnn_best", "cnn_best", None),
     ("ext_best (v3, retrained), digits only", "ext_best", Recogniser.DIGITS),
     ("ext_best (v3, retrained), all 16 classes", "ext_best", None),
@@ -66,8 +66,8 @@ def load_samples(folder: Path, single: bool) -> List[Tuple[str, np.ndarray, str]
 # Tuning run behind each checkpoint, so MNIST accuracy is read from the log
 # and the chart never drifts from the logged numbers.
 SUMMARIES = {
-    "tuning/pm_mlp_best": "pm_mlp_best", "tuning/pm_lenet_best": "pm_lenet_best",
-    "tuning/pm_resnet_best": "pm_resnet_best", "cnn_best": "s3_B5_bs_64",
+    "mlp_best": "pm_mlp_best", "lenet_best": "pm_lenet_best",
+    "resnet_best": "pm_resnet_best", "cnn_best": "s3_B5_bs_64",
     "ext_best": "ext_v3", "ext_v2": "ext_v2",
 }
 

@@ -1,21 +1,25 @@
 {
   "config": {
     "run_id": "ext_v3_noreal",
+    "arch": "vgg_deep",
+    "dataset": "mnist+symbols+real",
+    "augmentation": "light+style",
+    "learning_rate": 0.0003,
+    "batch_size": 64,
+    "dropout": 0.5,
+    "max_epochs": 8,
+    "seed": 42,
     "start": "ext_best",
     "real_repeat": 0,
-    "synthetic": 1500,
-    "no_style": false,
-    "epochs": 8,
-    "lr": 0.0003,
-    "batch_size": 64,
-    "seed": 42,
-    "limit": 0
+    "synthetic": 1500
   },
   "best_epoch": 5,
   "val_real_accuracy": 0.9977324263038548,
   "val_accuracy": 0.9931507110595703,
   "test_accuracy": 0.9936408400535583,
+  "robust_test_accuracy": 0.9873582720756531,
+  "epochs_run": 8,
   "training_time_s": 1611.4948334693909,
   "training_images": 83453,
-  "checkpoint": "/home/claude/repo/models/checkpoints/tuning/ext_v3_noreal.keras"
+  "checkpoint": "models/checkpoints/tuning/ext_v3_noreal.keras"
 }

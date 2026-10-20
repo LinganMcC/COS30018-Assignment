@@ -1,0 +1,27 @@
+{
+  "model": "hog_rf",
+  "hog": "hog4",
+  "hog_settings": {
+    "orientations": 9,
+    "pixels_per_cell": [
+      4,
+      4
+    ],
+    "cells_per_block": [
+      2,
+      2
+    ]
+  },
+  "params": {
+    "n_estimators": 200,
+    "max_features": "sqrt",
+    "min_samples_leaf": 1
+  },
+  "tuning_val_accuracy": 0.9683333333333334,
+  "val_accuracy": 0.9773333333333334,
+  "test_accuracy": 0.9769,
+  "train_images": 54000,
+  "training_time_s": 22.08018970489502,
+  "size": 1556076,
+  "file_mb": 19.0
+}

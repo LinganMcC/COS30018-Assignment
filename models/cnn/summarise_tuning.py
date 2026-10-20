@@ -18,6 +18,8 @@ MODELS_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_NAMES = {
     "mnist": ("tuning", "cnn_best"),
     "mnist+symbols": ("extension", "ext_best"),
+    # fine-tuned on the team's handwriting (ext_finetune.py); ext_best comes from here now
+    "mnist+symbols+real": ("extension_finetune", "ext_best"),
 }
 
 
@@ -37,10 +39,15 @@ def load_summaries(root: Path = MODELS_DIR, dataset: Optional[str] = None) -> Li
 
 
 def pick_best(summaries: List[dict]) -> Optional[dict]:
-    """Best by val accuracy, then shifted-test accuracy, then speed."""
+    """Best by val accuracy, then shifted-test accuracy, then speed.
+
+    Fine-tuned runs (ext_finetune.py) are selected on the validation writers'
+    real handwriting, so val_real_accuracy comes first when a run has it.
+    """
     if not summaries:
         return None
-    return max(summaries, key=lambda s: (round(s["val_accuracy"], 4),
+    return max(summaries, key=lambda s: (round(s.get("val_real_accuracy", s["val_accuracy"]), 4),
+                                         round(s["val_accuracy"], 4),
                                          s["robust_test_accuracy"],
                                          -s["training_time_s"]))
 
@@ -87,6 +94,14 @@ def comparison_chart(summaries: List[dict], out_path: Path,
     plt.close(fig)
 
 
+def frozen_source(name: str, root: Path = MODELS_DIR) -> Optional[str]:
+    """Run id the frozen checkpoints/<name>.keras was copied from, if recorded."""
+    path = root / "checkpoints" / f"{name}.source.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text()).get("source_run")
+
+
 def freeze(best: dict, root: Path = MODELS_DIR, name: str = "cnn_best") -> Path:
     """Copy the winning checkpoint + label map to checkpoints/<name>.*"""
     src = Path(best["checkpoint"])
@@ -102,10 +117,14 @@ def freeze(best: dict, root: Path = MODELS_DIR, name: str = "cnn_best") -> Path:
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description="Summarise Sprint 3 tuning runs.")
     p.add_argument("--dataset", default="mnist",
-                   help="which runs to compare: mnist (digits) or mnist+symbols (extension)")
+                   help="which runs to compare: mnist (digits), mnist+symbols (extension) "
+                        "or mnist+symbols+real (extension fine-tuned on team handwriting)")
     p.add_argument("--freeze", action="store_true",
                    help="copy the best run to checkpoints/cnn_best.keras "
-                        "(ext_best.keras for mnist+symbols)")
+                        "(ext_best.keras for mnist+symbols and mnist+symbols+real)")
+    p.add_argument("--force", action="store_true",
+                   help="with --freeze: replace a frozen model even if it came from a run "
+                        "that is not in this table")
     args = p.parse_args(argv)
 
     summaries = load_summaries(dataset=args.dataset)
@@ -120,9 +139,17 @@ def main(argv=None) -> None:
     comparison_chart(summaries, MODELS_DIR / "experiments" / f"{prefix}_comparison.png",
                      title=f"Runs on '{args.dataset}'")
     print(table)
-    print(f"Best by val accuracy: {best['config']['run_id']}")
+    print(f"Best by validation accuracy (real-handwriting validation for fine-tuned runs): "
+          f"{best['config']['run_id']}")
 
     if args.freeze:
+        current = frozen_source(model_name)
+        runs = {s["config"]["run_id"] for s in summaries}
+        if current and current not in runs and not args.force:
+            print(f"Not frozen: checkpoints/{model_name}.keras currently comes from run "
+                  f"'{current}', which is not a '{args.dataset}' run, so this table cannot "
+                  f"judge it. Add --force to replace it anyway.")
+            return
         print(f"Frozen to {freeze(best, name=model_name)}")
 
 

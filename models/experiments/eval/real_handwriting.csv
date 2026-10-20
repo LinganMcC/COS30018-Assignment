@@ -1,7 +1,7 @@
 model,checkpoint,digit_acc,mean_conf,exact_number,count_right,digit_when_count_right
-MLP (tuned),tuning/pm_mlp_best,0.5705,0.7287,0.2727,0.7475,0.5591
-LeNet-5 (tuned),tuning/pm_lenet_best,0.8389,0.8104,0.6061,0.7475,0.8864
-ResNet (tuned),tuning/pm_resnet_best,0.8389,0.8716,0.5556,0.7475,0.8591
+MLP (tuned),mlp_best,0.5705,0.7287,0.2727,0.7475,0.5591
+LeNet-5 (tuned),lenet_best,0.8389,0.8104,0.6061,0.7475,0.8864
+ResNet (tuned),resnet_best,0.8389,0.8716,0.5556,0.7475,0.8591
 VGG-deep = cnn_best,cnn_best,0.8658,0.9381,0.6364,0.7475,0.9045
 "ext_best (v3, retrained), digits only",ext_best,0.8591,0.9297,0.6263,0.7475,0.9045
 "ext_best (v3, retrained), all 16 classes",ext_best,0.8523,0.9313,0.5152,0.6667,0.8776
