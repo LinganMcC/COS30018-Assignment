@@ -1,0 +1,21 @@
+{
+  "config": {
+    "run_id": "ext_v3_nostyle",
+    "start": "ext_best",
+    "real_repeat": 6,
+    "synthetic": 1500,
+    "no_style": true,
+    "epochs": 8,
+    "lr": 0.0003,
+    "batch_size": 64,
+    "seed": 42,
+    "limit": 0
+  },
+  "best_epoch": 1,
+  "val_real_accuracy": 0.9977324263038548,
+  "val_accuracy": 0.9943658709526062,
+  "test_accuracy": 0.9947900772094727,
+  "training_time_s": 1700.821233510971,
+  "training_images": 98453,
+  "checkpoint": "/home/claude/repo/models/checkpoints/tuning/ext_v3_nostyle.keras"
+}

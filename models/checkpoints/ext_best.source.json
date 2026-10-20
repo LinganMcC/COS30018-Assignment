@@ -1,27 +1,26 @@
 {
-  "source_run": "ext_v2",
+  "source_run": "ext_v3",
+  "previous": "ext_v2 (kept as models/checkpoints/ext_v2.keras)",
+  "selected_by": "validation writers (sheets 1-2, writer 7): exact expressions 96.7 % vs 91.7 % for ext_v2",
   "summary": {
     "config": {
-      "run_id": "ext_v2",
-      "arch": "vgg_deep",
-      "dataset": "mnist+symbols",
-      "augmentation": "light",
-      "learning_rate": 0.001,
+      "run_id": "ext_v3",
+      "start": "ext_best",
+      "real_repeat": 6,
+      "synthetic": 1500,
+      "no_style": false,
+      "epochs": 8,
+      "lr": 0.0003,
       "batch_size": 64,
-      "dropout": 0.5,
-      "max_epochs": 30,
-      "patience": 5,
       "seed": 42,
-      "notes": "",
-      "quick": false,
-      "output_root": null
+      "limit": 0
     },
-    "val_accuracy": 0.9956915378570557,
-    "test_accuracy": 0.9957094788551331,
-    "robust_test_accuracy": 0.9917253851890564,
-    "epochs_run": 22,
-    "training_time_s": 1294.2207531929016,
-    "num_params": 587824,
-    "checkpoint": "C:\\Users\\Ted\\Desktop\\Intelligent System\\Project Assignment\\Option B HNRS\\COS30018-Assignment\\models\\checkpoints\\tuning\\ext_v2.keras"
+    "best_epoch": 7,
+    "val_real_accuracy": 1.0,
+    "val_accuracy": 0.9931507110595703,
+    "test_accuracy": 0.9937940835952759,
+    "training_time_s": 1752.6108949184418,
+    "training_images": 98453,
+    "checkpoint": "models/checkpoints/tuning/ext_v3.keras"
   }
 }

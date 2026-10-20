@@ -1,0 +1,21 @@
+{
+  "config": {
+    "run_id": "ext_v3",
+    "start": "ext_best",
+    "real_repeat": 6,
+    "synthetic": 1500,
+    "no_style": false,
+    "epochs": 8,
+    "lr": 0.0003,
+    "batch_size": 64,
+    "seed": 42,
+    "limit": 0
+  },
+  "best_epoch": 7,
+  "val_real_accuracy": 1.0,
+  "val_accuracy": 0.9931507110595703,
+  "test_accuracy": 0.9937940835952759,
+  "training_time_s": 1752.6108949184418,
+  "training_images": 98453,
+  "checkpoint": "/home/claude/repo/models/checkpoints/tuning/ext_v3.keras"
+}
