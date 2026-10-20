@@ -1,0 +1,38 @@
+crop,source_photo,reason
+t1_w1_1_1_03.jpg,tester 1/1_1.jpg,crossed out
+t1_w1_1_2_03.jpg,tester 1/1_2.jpg,crossed out
+t1_w2_2_26.jpg,tester 1/2.jpg,crossed out
+t1_w4_4_1_00.jpg,tester 1/4_1.jpg,title
+t1_w4_4_4_06.jpg,tester 1/4_4.jpg,cut at photo edge
+t1_w5_5_13.jpg,tester 1/5.jpg,crossed out
+t1_w5_5_29.jpg,tester 1/5.jpg,crossed out
+t1_w5_5_30.jpg,tester 1/5.jpg,fragment
+t1_w6_6_26.jpg,tester 1/6.jpg,crossed out
+t2_w1_1_1_00.jpg,tester 2/1_1.jpg,title
+t2_w1_1_2_08.jpg,tester 2/1_2.jpg,crossed-out attempt inside crop
+t2_w2_2_07.jpg,tester 2/2.jpg,crossed out
+t2_w4_4_5_01.jpg,tester 2/4_5.jpg,cut at photo edge
+t2_w4_4_5_03.jpg,tester 2/4_5.jpg,fragments
+t2_w4_4_7_00.jpg,tester 2/4_7.jpg,partial line (photo overlap)
+t2_w5_5_03.jpg,tester 2/5.jpg,missing leading 1
+t2_w5_5_27.jpg,tester 2/5.jpg,crossed out
+t3_w1_1_1_00.jpg,tester 3/1_1.jpg,title
+t3_w4_4_1_12.jpg,tester 3/4_1.jpg,missing leading 4
+t3_w4_4_1_14.jpg,tester 3/4_1.jpg,missing leading 7
+t3_w6_6_24.jpg,tester 3/6.jpg,crossed out
+t4_w1_1_1_00.jpg,tester 4/1_1.jpg,title
+t4_w2_2_1_04.jpg,tester 4/2_1.jpg,writer wrote 41 div 19 (not the target)
+t4_w2_2_2_05.jpg,tester 4/2_2.jpg,missing 5x (fragment)
+t4_w2_2_3_03.jpg,tester 4/2_3.jpg,duplicate photo of the same line
+t4_w3_3_13.jpg,tester 4/3.jpg,crossed out
+t4_w3_3_14.jpg,tester 4/3.jpg,fragment
+t4_w4_4_1_06.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_07.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_10.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_12.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_13.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_14.jpg,tester 4/4_1.jpg,fragment
+t4_w4_4_1_15.jpg,tester 4/4_1.jpg,fragment
+t4_w5_5_1_00.jpg,tester 4/5_1.jpg,title
+t4_w5_5_4_06.jpg,tester 4/5_4.jpg,cut at photo edge
+t4_w6_6_2_09.jpg,tester 4/6_2.jpg,cut at photo edge
