@@ -293,9 +293,27 @@ that holds parts of two digits. The merge step on its own changed nothing on the
 held-out sheets; it helps only in combination with splitting, as in 13579, where
 the 1 was drawn in two strokes and the 7 and 9 touched.
 
+**Photo cleanup.** Two steps that act on the photo before segmentation were
+also tried on top of the best repair: removing ruled lines and deskewing slanted
+writing (`src/page_cleanup.py`).
+
+| Held-out, 72 numbers | Right count | Read exactly | Touching, read exactly |
+|---|---|---|---|
+| merge + recognition | 79 % | 67 % | 18 % |
+| + ruled lines removed | 79 % | 67 % | 18 % |
+| + deskew | 78 % | 68 % | 12 % |
+| + both | 78 % | 68 % | 12 % |
+
+Removing ruled lines changed no number: a line under a row of writing is its own
+region and the size filter already drops it. It matters for single digits, where
+it lifts the lined sheet from 7 to 17 of 20 (Task 1, section 6b), so it is part
+of the system's entry point. Deskewing lowered exact reading on the development
+set from 70 % to 67 %, and because every choice was made on the development set
+it was rejected, even though it is one number higher on the held-out sheets.
+
 The recognition-based repair needs the model loaded before segmentation can
 run, so it is provided as a separate entry point, `segment_digits_repaired(image,
-scorer)`, and `segment_digits()` keeps the model-free `contours` default.
+scorer)`, which also removes ruled lines first, and `segment_digits()` keeps the model-free `contours` default.
 
 ## 8. Known limitations
 

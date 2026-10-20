@@ -362,7 +362,7 @@ SPLIT_METHODS = {
 
 def segment_digits_repaired(image: np.ndarray, scorer: Scorer
                             ) -> tuple[list[np.ndarray], list[tuple[int, int, int, int]]]:
-    """The full repaired segmenter, for the system: merge, then recognition split.
+    """The full repaired segmenter, for the system: ruled lines out, merge, split.
 
     Returns (photo crops, boxes) left to right. The crops are already cut from
     the photo (with a cut piece's neighbour painted out), so they go straight
@@ -372,5 +372,7 @@ def segment_digits_repaired(image: np.ndarray, scorer: Scorer
     scorer = any function from a list of photo crops to an (n, 10) array of
     digit probabilities, e.g. the team model behind preprocess(...).
     """
+    from page_cleanup import remove_ruled_lines
+    image = remove_ruled_lines(image)          # boxes refer to this cleaned photo
     binary, pieces = segment_pieces(image, merge=True, split="recognition", scorer=scorer)
     return [photo_crop(image, binary, p) for p in pieces], [p.box for p in pieces]

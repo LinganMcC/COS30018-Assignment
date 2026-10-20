@@ -141,6 +141,7 @@ python experiments/show_techniques.py
 # (tuned on John's two sheets + generated numbers, scored on the other four sheets)
 python experiments/evaluate_split.py
 python experiments/evaluate_split.py --figure
+python -m pytest tests/test_page_cleanup.py -q      # ruled-line removal, deskew
 
 # Task 2 on arithmetic expressions - do the operators get their own boxes?
 python src/generate_number.py --expressions --count 40     # first, once

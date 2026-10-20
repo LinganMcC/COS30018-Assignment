@@ -36,6 +36,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
+import page_cleanup as P
 import segmentation_split as S
 from preprocessing import SELECTED_CONFIG, preprocess
 from segmentation import _prepare_binary, segment_digits
@@ -45,6 +46,7 @@ REPORTS = ROOT / "reports"
 DEV_SHEETS = {"IMG_1406.JPG", "IMG_1407.JPG"}       # John's first two sheets
 GENERATED = ROOT / "data" / "generated"
 MODEL = ROOT / "models" / "checkpoints" / "cnn_best.keras"
+FINAL = "lines + recognition"       # the system's configuration (segment_digits_repaired)
 
 
 # ---------------------------------------------------------------------------
@@ -93,13 +95,15 @@ class Reader:
 
 def run(method: str, image: np.ndarray, reader: Reader | None):
     """(count, read) for one image. read is None when there is no reader."""
-    if method == "contours":
+    merge, split, lines, straighten = CONFIGS[method]
+    if lines or straighten:
+        image = P.clean(image, lines=lines, straighten=straighten)
+    if split == "contours":
         # the Task 2 selection exactly as the pipeline uses it: plain box crops
         _, boxes = segment_digits(image)
         crops = [image[y:y + h, x:x + w] for (x, y, w, h) in boxes]
         count = len(boxes)
     else:
-        merge, split = CONFIGS[method]
         if split == "recognition" and reader is None:
             return None, None
         binary, pieces = S.segment_pieces(
@@ -113,14 +117,20 @@ def run(method: str, image: np.ndarray, reader: Reader | None):
     return count, "".join(str(int(p.argmax())) for p in probs)
 
 
-# name -> (merge, split); "contours" is the baseline and handled separately
+# name -> (merge, split, remove ruled lines, deskew)
 CONFIGS = {
-    "merge": (True, None),
-    "merge + projection": (True, "projection"),
-    "merge + dropfall": (True, "dropfall"),
-    "merge + recognition": (True, "recognition"),
+    "contours": (False, "contours", False, False),
+    "merge": (True, None, False, False),
+    "merge + projection": (True, "projection", False, False),
+    "merge + dropfall": (True, "dropfall", False, False),
+    "merge + recognition": (True, "recognition", False, False),
+    "lines + contours": (False, "contours", True, False),
+    "deskew + contours": (False, "contours", False, True),
+    "lines + recognition": (True, "recognition", True, False),
+    "deskew + recognition": (True, "recognition", False, True),
+    "lines + deskew + recognition": (True, "recognition", True, True),
 }
-METHODS = ["contours"] + list(CONFIGS)
+METHODS = list(CONFIGS)
 
 
 def score(items, method, reader) -> dict:
@@ -187,19 +197,21 @@ def figure(items, reader) -> None:
     import matplotlib.pyplot as plt
 
     def boxes_and_read(method, image):
-        if method == "contours":
-            _, boxes = segment_digits(image)
+        merge, split, lines, straighten = CONFIGS[method]
+        shown = P.clean(image, lines=lines, straighten=straighten)
+        if split == "contours":
+            _, boxes = segment_digits(shown)
         else:
-            _, pieces = S.segment_pieces(image, merge=True, split="recognition",
+            _, pieces = S.segment_pieces(shown, merge=merge, split=split,
                                          scorer=reader.probabilities)
             boxes = [p.box for p in pieces]
-        return boxes, run(method, image, reader)[1]
+        return shown, boxes, run(method, image, reader)[1]
 
     changed = []
     for name, image, label, _ in items:
         before = boxes_and_read("contours", image)
-        after = boxes_and_read("merge + recognition", image)
-        if (before[1] == label) != (after[1] == label):
+        after = boxes_and_read(FINAL, image)
+        if (before[2] == label) != (after[2] == label):
             changed.append((name, image, label, before, after))
     if not changed:
         print("No number changed between contours and the repair.")
@@ -208,9 +220,9 @@ def figure(items, reader) -> None:
     fig, axes = plt.subplots(2, len(changed), figsize=(3.2 * len(changed), 4.6),
                              dpi=140, squeeze=False)
     for col, (name, image, label, before, after) in enumerate(changed):
-        for row, (title, (boxes, read)) in enumerate((("contours", before),
-                                                      ("merge + recognition", after))):
-            vis = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).copy()
+        for row, (title, (shown, boxes, read)) in enumerate((("contours", before),
+                                                              ("repaired", after))):
+            vis = cv2.cvtColor(shown, cv2.COLOR_BGR2RGB).copy()
             ok = read == label
             colour = (26, 127, 55) if ok else (192, 0, 0)
             for (x, y, w, h) in boxes:
@@ -258,12 +270,12 @@ def main() -> None:
 
     for set_name in ("development", "held-out"):
         print(f"{set_name}")
-        head = f"  {'method':22s} {'count':>6s} {'touch':>6s} {'separ':>6s}"
+        head = f"  {'method':30s} {'count':>6s} {'touch':>6s} {'separ':>6s}"
         if reader:
             head += f" {'exact':>6s} {'touch':>6s} {'separ':>6s}"
         print(head)
         for r in (r for r in rows if r["set"] == set_name):
-            line = (f"  {r['method']:22s} {r['count']:>6.0%} {r['count_touching']:>6.0%} "
+            line = (f"  {r['method']:30s} {r['count']:>6.0%} {r['count_touching']:>6.0%} "
                     f"{r['count_separate']:>6.0%}")
             if reader:
                 line += (f" {r['exact']:>6.0%} {r['exact_touching']:>6.0%} "

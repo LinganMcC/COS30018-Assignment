@@ -80,7 +80,7 @@ Script: `evaluate_custom.py --pipeline-only` → `reports/custom_pipeline.csv`.
 | Configuration | (a) MNIST, 5 seeds | (b) 149 real digits | (c) 99 real numbers |
 |---|---|---|---|
 | **`otsu_mnist_box`** | 0.960 ± 0.005 | **81.9 %** | **62 %** |
-| `otsu_denoised_centered` | 0.956 ± 0.005 | 79.9 % | 7 % |
+| `otsu_denoised_centered` | 0.956 ± 0.005 | 77.9 % | 7 % |
 | `otsu` | 0.967 ± 0.006 | 76.5 % | 1 % |
 | `otsu_denoised` | 0.959 ± 0.005 | 76.5 % | 1 % |
 | `adaptive` | 0.967 ± 0.003 | 63.1 % | 2 % |
@@ -89,7 +89,9 @@ Script: `evaluate_custom.py --pipeline-only` → `reports/custom_pipeline.csv`.
 | `adaptive_mnist_box` | 0.965 ± 0.003 | 33.6 % | 34 % |
 
 Column (c) uses `contours` segmentation (the Task 2 selection) for every row, so
-only the preprocessing changes. An earlier version of this table was measured on
+only the preprocessing changes. After Thien changed `center_by_mass` to always
+keep a 1-pixel border, the table was re-measured: only `otsu_denoised_centered`,
+the one configuration that calls it, moved (single digits 79.9 % to 77.9 %). An earlier version of this table was measured on
 70 digits and 27 numbers from one writer; the ranking at the top did not change
 when the set grew to four writers.
 
@@ -180,7 +182,7 @@ their judge, since the ranking of the techniques is the same under either.
 a 28×28 frame, centred by mass → normalise to `[0, 1]`.
 
 It is the only configuration at the top of both real-data tests. On single
-digits alone its lead is not decisive: `otsu_denoised_centered` is 3 images
+digits alone its lead is not decisive: `otsu_denoised_centered` is 6 images
 behind out of 149, which is within noise. Measurement (c) decides it — the same
 two configurations read 62 % and 7 % of whole numbers, because only one of them
 keeps a tight crop in MNIST's proportions.
@@ -219,16 +221,43 @@ ink and the bounding box silently becomes the whole frame — turning the box
 operation into a plain resize without any error. The ink is now located with an
 Otsu mask, while the pixels copied into the box keep their original grey values.
 
+## 6b. Removing ruled lines before preprocessing
+
+`page_cleanup.remove_ruled_lines()` paints out ink that runs almost edge to edge
+across the photo (at least 85 % of its width, allowed to tilt slightly) and is
+thin at every column, using the paper colour. A digit crop as photographed keeps
+a margin of paper on both sides, so no stroke of a digit reaches both edges,
+while a ruled line always does. Where a digit crosses the line, the strokes
+above and below it are kept.
+
+The parameters were fixed from that reasoning before the step was measured, and
+measured once on the 149 single digits:
+
+| Judge | Lined sheet (20) | Five plain sheets (129) | All (149) |
+|---|---|---|---|
+| LeNet, before | 6 | 116 | 122 (81.9 %) |
+| LeNet, lines removed | 9 | 116 | 125 (83.9 %) |
+| `cnn_best`, before | 7 | 122 | 129 (86.6 %) |
+| `cnn_best`, lines removed | **17** | 122 | **139 (93.3 %)** |
+
+It never changed a digit on a plain sheet, and with the final model it lifts the
+lined sheet from 35 % to 85 %. It is applied to the whole photo, not inside
+`preprocess()`: a tight crop handed over by segmentation has no margin, and there
+the bar of a 7 also runs edge to edge.
+
+A second photo-level step, deskewing (shearing slanted writing upright using
+the ink's second moments, as is common for MNIST), was implemented and tried in
+the same way. It added three single digits but lowered whole-number reading on
+the development set from 70 % to 67 %, so it was not adopted
+(`reports/split_comparison.csv`).
+
 ## 7. Limitations
 
-- **Ruled lines are not removed.** On the lined sheet single digits fall to
-  30 % (6 of 20). Otsu keeps the printed or drawn line as ink, and the 20×20
-  box then fits around digit and line together, so a digit sitting on a line
-  reaches the classifier with a bar along its base — 7 of the 14 errors were
-  read as "2". The row written above its line scored 5 of 10, the row touching
-  its line 1 of 10, so the line rather than the slant is the cause. Removing
-  long horizontal strokes before thresholding (a morphological opening, as
-  `split_sheet.py` already does to locate numbers) is the obvious next step.
+- **Ruled lines** were the worst single condition: on the lined sheet single
+  digits fell to 30 % (6 of 20), because Otsu keeps the line as ink and the
+  20×20 box fits around digit and line together; 7 of the 14 errors were read
+  as "2". This is now handled before preprocessing (section 6b), but only
+  one sheet in the test set is lined, so the fix rests on 20 digits.
 - **The real test set is 149 digits and 99 numbers from four writers.** Pen
   thickness varies by a factor of about 5.8 across it
   (`reports/custom_test_set.csv`), but it is one camera and one paper stock, and
