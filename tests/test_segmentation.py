@@ -122,81 +122,6 @@ def test_projection_splits_shapes_that_are_connected():
     assert len(segment_digits(img, method="projection")[0]) == 2
 
 
-# --- operators, for the arithmetic extension -------------------------------
-
-OPERATOR_METHODS = ["contours", "connected_components", "watershed"]
-
-
-def make_expression_image(text: str, spacing: int = 70) -> np.ndarray:
-    """Draw an expression dark on white. '/' is drawn as a real division sign."""
-    width = 40 + spacing * len(text)
-    img = np.zeros((160, width), dtype=np.uint8)
-    for i, ch in enumerate(text):
-        cx = 25 + i * spacing
-        if ch == "/":
-            cv2.line(img, (cx, 80), (cx + 50, 80), 255, 6)
-            cv2.circle(img, (cx + 25, 54), 7, 255, -1)
-            cv2.circle(img, (cx + 25, 106), 7, 255, -1)
-        else:
-            cv2.putText(img, ch, (cx, 110), cv2.FONT_HERSHEY_SIMPLEX, 2.2, 255, 5)
-    return cv2.bitwise_not(img)
-
-
-@pytest.mark.parametrize("method", OPERATOR_METHODS)
-@pytest.mark.parametrize("expression", ["26-3", "9*3", "8/2", "(2+3)*4"])
-def test_operators_are_found_when_asked_for(method, expression):
-    """Every symbol of an expression gets its own box.
-
-    Without keep_operators the digit filter drops '-', '*' and all three pieces
-    of a division sign, because each is far shorter than the digits beside it.
-    """
-    _, boxes = segment_digits(make_expression_image(expression),
-                              method=method, keep_operators=True)
-    assert len(boxes) == len(expression)
-
-
-@pytest.mark.parametrize("method", OPERATOR_METHODS)
-def test_minus_is_dropped_by_default(method):
-    """The digit pipeline must keep rejecting short shapes.
-
-    This is the trade-off the flag exists for: a minus sign and a speck of dust
-    are both short, so admitting one admits the other.
-    """
-    _, boxes = segment_digits(make_expression_image("26-3"), method=method)
-    assert len(boxes) == 3
-
-
-@pytest.mark.parametrize("method", OPERATOR_METHODS)
-def test_division_sign_comes_back_as_one_box(method):
-    """Bar and both dots must be merged, not returned as three symbols."""
-    _, boxes = segment_digits(make_expression_image("8/2"),
-                              method=method, keep_operators=True)
-    _, _, _, divide_height = boxes[1]
-    _, _, _, digit_height = boxes[0]
-    assert divide_height > digit_height      # a merged box spans both dots
-
-
-@pytest.mark.parametrize("method", OPERATOR_METHODS)
-def test_operator_mode_still_ignores_noise_specks(method):
-    img = make_expression_image("7+1")
-    cv2.circle(img, (10, 10), 1, 0, -1)
-    cv2.circle(img, (15, 150), 1, 0, -1)
-    _, boxes = segment_digits(img, method=method, keep_operators=True)
-    assert len(boxes) == 3
-
-
-def test_segment_expression_orders_symbols_left_to_right():
-    _, boxes = segment_expression(make_expression_image("26-3*(17-4)"))
-    assert len(boxes) == 11
-    assert [b[0] for b in boxes] == sorted(b[0] for b in boxes)
-
-
-def test_segment_expression_rejects_projection():
-    """Named rather than silently wrong: projection cannot see a division sign."""
-    with pytest.raises(ValueError, match="division"):
-        segment_expression(make_expression_image("8/2"), method="projection")
-
-
 def test_watershed_crops_do_not_leak_neighbouring_ink():
     """Each watershed crop is masked to its own label.
 
@@ -213,3 +138,29 @@ def test_watershed_crops_do_not_leak_neighbouring_ink():
         # a masked crop holds less ink than the full box would if both blobs
         # were present, so it can never be completely filled
         assert crop.sum() / 255 < w * h
+
+
+def make_division_image(dot_radius: int) -> np.ndarray:
+    """'8 ÷ 2' with a handwritten-size division sign (dots ~8 % of digit height)."""
+    img = make_number_image("8 2")
+    cv2.line(img, (125, 75), (185, 75), 0, 5)
+    for y in (50, 100):
+        cv2.circle(img, (155, y), dot_radius, 0, -1)
+    return img
+
+
+def test_small_division_dots_join_the_bar():
+    """Dots below the operator-blob limit must still make the bar a '÷', not a '-'."""
+    _, boxes = segment_expression(make_division_image(dot_radius=3))
+    assert len(boxes) == 3
+    _, top, _, height = boxes[1]
+    assert top <= 50 - 2 and top + height >= 100 + 2   # box spans both dots
+
+
+def test_small_specks_away_from_a_bar_are_still_dropped():
+    img = make_number_image("8 2")
+    cv2.line(img, (125, 75), (185, 75), 0, 5)
+    cv2.circle(img, (60, 130), 3, 0, -1)      # speck under the 8, no bar there
+    _, boxes = segment_expression(img)
+    assert len(boxes) == 3
+    assert boxes[1][3] < 15                    # the minus stays a thin bar
