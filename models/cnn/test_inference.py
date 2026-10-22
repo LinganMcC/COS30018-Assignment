@@ -116,3 +116,61 @@ def test_frozen_label_files_name_a_registered_dataset():
     for label_file in CHECKPOINTS.glob("*.labels.json"):
         meta = json.loads(label_file.read_text())
         assert meta.get("dataset", "mnist") in available_datasets(), label_file.name
+
+
+# number segmentation: John's repaired segmentation is the default
+
+def _blobs(xs=(30, 150, 260)):
+    img = np.full((120, 360, 3), 255, np.uint8)
+    for x in xs:
+        cv2.putText(img, "8", (x, 95), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 8)
+    return img
+
+
+def test_numbers_use_repaired_segmentation_unless_told_otherwise(monkeypatch):
+    import inference as inf
+    seen = []
+
+    def fake_segment_number(image, method=None, reader=None):
+        seen.append(method)
+        return [image[0:50, 0:50]], [(0, 0, 50, 50)]
+
+    monkeypatch.setattr(inf, "segment_number", fake_segment_number)
+    rec = Recogniser("fake", model=FakeModel(one_hot_ish(DEFAULT_LABELS, "7", "1")))
+    rec.read_image(_blobs())
+    rec.read_image(_blobs(), method="contours")
+    assert inf.NUMBER_SEGMENTATION == "repaired" and seen == [None, "contours"]
+
+
+def test_expressions_keep_the_operator_segmentation(monkeypatch):
+    import inference as inf
+    monkeypatch.setattr(inf, "segment_number",
+                        lambda *a, **k: pytest.fail("expressions must not use segment_number"))
+    rec = Recogniser("fake", model=FakeModel(one_hot_ish(EXT_LABELS, "7", "1")),
+                     label_names=EXT_LABELS)
+    text, _ = rec.read_image(_blobs(), method="repaired")      # ignored for expressions
+    assert text == "777"
+
+
+def test_contours_option_matches_task2_segmentation():
+    import inference as inf
+    import segmentation
+    img = _blobs()
+    crops, boxes = inf.segment_number(img, method="contours")
+    assert boxes == [tuple(int(v) for v in b) for b in segmentation.segment_digits(img)[1]]
+    assert all(c.shape[:2] == (h, w) for c, (x, y, w, h) in zip(crops, boxes))
+
+
+def test_repaired_segmentation_cuts_a_touching_pair():
+    """Two touching blobs, one connected region: contours gives 1 box, repaired 2.
+
+    The scorer is injected (a reader named like the scorer model), so no checkpoint is loaded.
+    """
+    import inference as inf
+    img = np.full((140, 300, 3), 255, np.uint8)
+    cv2.putText(img, "0", (40, 110), cv2.FONT_HERSHEY_SIMPLEX, 3.4, (0, 0, 0), 9)
+    cv2.putText(img, "0", (92, 110), cv2.FONT_HERSHEY_SIMPLEX, 3.4, (0, 0, 0), 9)
+    assert len(inf.segment_number(img, method="contours")[1]) == 1
+    reader = Recogniser(inf.SEGMENTATION_SCORER, model=FakeModel(one_hot_ish(DEFAULT_LABELS, "0", "8", 0.9, 0.05)))
+    crops, boxes = inf.segment_number(img, reader=reader)
+    assert len(boxes) == 2 and boxes[0][0] < boxes[1][0]

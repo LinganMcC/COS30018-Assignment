@@ -139,9 +139,19 @@ python gui.py          # from the repository root
      (SVM about 3 minutes, Random Forest under 1; Stop works only before the
      fit starts).
 
-3. **Load an image:** *Input → Load image…* or drag a file onto the window.
-   Try any file in `data/custom_samples/numbers/` or
-   `data/custom_samples/expressions/ready/`.
+3. **Get an input image** – either way the specification asks for:
+   - **Load an image file:** *Input → Load image…* or drag a file onto the
+     window. Try any file in `data/custom_samples/numbers/` or
+     `data/custom_samples/expressions/ready/`.
+   - **Generate from a folder of digit images:** in *Input → Generate from a
+     folder of digit images*, choose a folder, type the number (or leave it
+     empty for a random one of *Digits* length) and press **Generate**. Tick
+     *Expression* to build an arithmetic expression such as `(3+4)*5` (digits
+     from the folder, operators drawn). The folder can hold subfolders `0/` …
+     `9/` (e.g. `data/raw/` from `python src/prepare_data.py`) or files named
+     with the digit first, like `3_01.jpg`; the default is the team's own digit
+     photos, `data/custom_samples/digits/`. Same from the command line:
+     `python src/number_from_folder.py data/custom_samples/digits --text 4096`.
 
 4. Press **Recognise Number**. The result appears under *Output* with a
    confidence for every symbol. With *CNN + operators*, the expression is also
@@ -151,8 +161,10 @@ python gui.py          # from the repository root
 
 Every model option uses the project's own preprocessing and segmentation
 (section 3), so all five see exactly the same 28×28 inputs – the GUI reads the
-real test photos exactly as `evaluation/evaluate_all.py` scored them. The
-*Preprocessing* and *Segmentation* panels on the left are not used.
+real test photos exactly as `evaluation/evaluate_all.py` scored them.
+*Settings → Segment* chooses how numbers are cut: **Repaired** (the system's,
+default) or **Contours** (the Task 2 selection, for comparison). Expressions
+always use the operator-aware segmentation.
 
 ---
 
@@ -171,18 +183,26 @@ every stage on one real photo:
 
 ![Pipeline on a real photo of 896](docs/images/pipeline_896.png)
 
-**1. Segmentation** – `segment_digits()` / `segment_expression()` in `src/segmentation.py` (Task 2)
+**1. Segmentation** – `segment_number()` in `models/cnn/inference.py`, built
+on `src/segmentation.py` and `src/segmentation_split.py` (Task 2)
 
+- Ruled lines (ink running edge to edge) are painted out (`src/page_cleanup.py`).
 - The photo is converted to grey, median-filtered and binarised with Otsu's
   threshold, so ink becomes white and paper black.
 - The outer contour of every ink region gives a bounding box (`contours`
   method). Boxes too small to be a digit are dropped as noise.
+- **Repairs** (second round): pieces stacked in the same columns are merged
+  into one digit, and a box too wide for one digit is tried as 2, 3 or 4
+  digits at several cut positions; `cnn_best` reads every option and the cut
+  it reads most confidently is kept. The same `cnn_best` chooses the cuts
+  whichever model then reads the number, so every model gets the same crops.
 - For expressions (`segment_expression`), short and flat shapes are kept as
   operators, and the bar and dots of a `÷` are merged into one box.
 - Boxes are sorted left to right. Each box is then cut from the **original
   photo**, not from the binary image, because preprocessing expects ink on paper.
-- Four classical methods and six model-based ones were compared;
-  `contours` was selected because it was best on real photos (section 4).
+- Four classical methods and six model-based ones were compared; `contours`
+  was selected because it was best on real photos, and the repairs were then
+  added on top of it (section 4).
 
 **2. Preprocessing** – `preprocess()` in `src/preprocessing.py` (Task 1)
 
@@ -228,10 +248,13 @@ text, details = Recogniser("ext_best").read_image(image)    # also reads + − �
 ```
 
 **Input from a folder of digit images.** The specification also asks for a
-number image built automatically from single-digit images:
-`python src/generate_number.py` builds them from MNIST digits with ground-truth
-labels (`--expressions` builds arithmetic expressions instead). Wiring this
-into the GUI is still open (section 8).
+number image built automatically from single-digit images. In the GUI this is
+*Input → Generate from a folder of digit images* (section 2), implemented in
+`src/number_from_folder.py`: each digit image – MNIST (white on black) or a
+photo (dark on paper) – is cropped to its ink, cleaned of ruled lines and
+neighbouring strokes, scaled to the same height and stroke width, and placed
+side by side. `python src/generate_number.py` builds labelled test sets the same
+way from MNIST for the Task 2 comparisons.
 
 ---
 
@@ -265,21 +288,24 @@ can tell them apart. Full table: `reports/report_task1_preprocessing.md`.
 Projection wins on generated numbers but fails on real handwriting. Digits that
 touch are the main limitation. Full analysis: `reports/report_task2_segmentation.md`.
 
-A second round (`src/segmentation_split.py`) repairs touching digits by cutting
-wide boxes where the model reads the pieces most confidently: 64 % → 68 % of
-real numbers read exactly, touching numbers 8 % → 20 %. It is not yet used by
-the GUI (`reports/report_task2_segmentation.md`).
+A second round (`src/segmentation_split.py`) repairs `contours`: ruled lines
+removed, stacked pieces merged, and boxes too wide for one digit cut where
+`cnn_best` reads the pieces most confidently. With `cnn_best` on the 99 real
+numbers: 63.6 % → **67.7 %** read exactly (4 numbers fixed, none lost), touching
+numbers 8 % → 20 %; on the 600 generated numbers 60.0 % → 65.5 % (44 fixed,
+11 lost). **The system uses it for numbers** (*Segment → Repaired* in the GUI;
+*Contours* is kept for comparison). Details: `reports/report_task2_segmentation.md`.
 
 **Task 3 – recognition techniques** (three families, each model at its best tuned settings)
 
 | Model | Family | MNIST test | MNIST shifted | Real single digits (149) | Real numbers, whole number (99) |
 |---|---|---|---|---|---|
-| HOG + SVM (RBF) | classical ML | 98.9 % | 78.0 % | 79.9 % | 53.5 % |
-| HOG + Random Forest | classical ML | 97.7 % | 77.2 % | 73.2 % | 48.5 % |
-| MLP (no convolutions) | simple neural | 99.0 % | 96.9 % | 57.0 % | 27.3 % |
-| LeNet-5 | CNN | 99.3 % | 98.1 % | 83.9 % | 60.6 % |
-| ResNet (small) | CNN | 99.6 % | 99.5 % | 83.9 % | 55.6 % |
-| **VGG-deep = `cnn_best`** | CNN | **99.6 %** | 99.5 % | **86.6 %** | **63.6 %** |
+| HOG + SVM (RBF) | classical ML | 98.9 % | 78.0 % | 79.9 % | 56.6 % |
+| HOG + Random Forest | classical ML | 97.7 % | 77.2 % | 73.2 % | 49.5 % |
+| MLP (no convolutions) | simple neural | 99.0 % | 96.9 % | 57.0 % | 29.3 % |
+| LeNet-5 | CNN | 99.3 % | 98.1 % | 83.9 % | 64.6 % |
+| ResNet (small) | CNN | 99.6 % | 99.5 % | 83.9 % | 58.6 % |
+| **VGG-deep = `cnn_best`** | CNN | **99.6 %** | 99.5 % | **86.6 %** | **67.7 %** |
 
 On MNIST alone the models are within one point of each other; shifted and real
 input separate them. VGG-deep is significantly better (McNemar's test) than the
@@ -291,13 +317,13 @@ selection: `evaluation/report_comparison_of_techniques.md`.
 
 | Test set | Digit count right | Per-digit accuracy | Whole-number accuracy |
 |---|---|---|---|
-| 600 generated numbers (MNIST test digits; wide / tight / touching) | 68.7 % | 81.8 % | 60.0 % |
-| 99 real photographed numbers | 74.7 % | 72.7 % | 63.6 % |
-| … of which digits apart / touching | 95.9 % / 12.0 % | – | 82.4 % / 8.0 % |
+| 600 generated numbers (MNIST test digits; wide / tight / touching) | 77.3 % | 87.4 % | 65.5 % |
+| 99 real photographed numbers | 77.8 % | 77.9 % | 67.7 % |
+| … of which digits apart / touching | 94.6 % / 28.0 % | – | 83.8 % / 20.0 % |
 
-About 70 % of failures happen in segmentation (mostly touching digits cut as
-one), not recognition: when a number is cut correctly, 90.5 % of real digits are
-read right. Critical analysis: `evaluation/report_system_performance.md`.
+About two thirds of failures (69 % on real photos) happen in segmentation,
+mostly touching digits still cut as one, not recognition: when a number is cut
+correctly, 92.7 % of real digits are read right. Critical analysis: `evaluation/report_system_performance.md`.
 
 **Extension – handwritten expressions** (408 expressions by 14 writers whose
 handwriting was **not** used for training)
@@ -350,7 +376,8 @@ COS30018-Assignment/
 ├── gui.py                      the graphical interface (start here)
 ├── expression_parser.py        calculates a recognised expression (precedence, brackets, no eval())
 ├── requirements.txt            exact package versions
-├── src/                        Task 1 preprocessing, Task 2 segmentation, data tools   → src/README.md
+├── src/                        Task 1 preprocessing, Task 2 segmentation, data tools,  → src/README.md
+│                               number_from_folder.py (GUI input from a digit folder)
 ├── experiments/                Task 1 + 2 comparison scripts                           → src/README.md
 ├── reports/                    Task 1 + 2 results (CSV, figures) and report sections
 ├── models/
@@ -412,19 +439,27 @@ many numbers can be cut automatically with `src/split_sheet.py`.
 | Task 3 – classical baselines (HOG + SVM, HOG + Random Forest), six-model comparison with significance tests | done |
 | Task 4 – per-digit and whole-number evaluation on generated and real input, critical analysis | done |
 | GUI – load image, choose model, pretrained or train new, live curves, per-symbol confidence | done |
-| GUI – build a number from a folder of digit images | **open** – Russell (`src/generate_number.py` exists) |
+| GUI – build a number (or expression) from a folder of digit images | done (`src/number_from_folder.py`) |
 | GUI – MLP / SVM / Random Forest options, pretrained or train new | done |
 | Extension – recognise handwritten expressions | done (87.5 % exact on unseen writers) |
 | Extension – calculate the result with a parser (operator precedence, brackets, no `eval()`) | done (`expression_parser.py`; shown in the GUI) |
 
 **Known limitations (measured, with the evidence in the files named):**
 
-- **Touching digits.** When two digits touch, segmentation returns one box for
-  both; this causes most whole-number errors (`reports/report_task2_segmentation.md`).
+- **Touching digits.** The repaired segmentation cuts some touching pairs, but
+  only 28 % of real numbers with touching digits get the right number of
+  boxes (20 % read exactly, against 84 % when the digits are apart); this is
+  still the largest cause of errors (`evaluation/results/failure_analysis.md`).
+- **Wide single digits cut in two.** The repair assumes a very wide box holds
+  several digits, so a sweeping `2` or `7` is sometimes cut into two (on the
+  149 single-digit photos: 25 cut, against 13 with plain `contours`). On numbers
+  it still fixes more than it breaks (see Task 2 above).
 - **Real handwriting is harder than MNIST.** Every model scores about 99 % on
   MNIST and 57–87 % on real single digits (`models/experiments/eval/real_handwriting.md`).
-- **Ruled paper.** Lines are kept as ink; single-digit accuracy on the lined
-  sheet is 30 % against 90 % on plain paper (`src/preprocessing.py`).
+- **Ruled paper.** Ruled lines are now removed before segmentation, but the
+  lined sheet (also written on a slant) is still the weakest: 38.9 % of its
+  numbers read exactly, against 67–83 % on plain-paper sheets
+  (`evaluation/results/failure_analysis.md`).
 - **Nested brackets.** Only 78 % of nested-bracket expressions are cut into
   the right number of symbols (`models/experiments/eval/expressions_report.md`).
 
@@ -473,4 +508,4 @@ Then open a pull request on GitHub and ask a teammate to review it.
 - Do not commit datasets, `venv/`, `models/gui_runs/` or per-run tuning models;
   `.gitignore` covers them.
 - The CSVs and figures in `reports/` and `models/experiments/` **are**
-  committed on purpose: they are the evidence for every comparison above.
+  committed on purpose: they are the evidence for every comparison above.

@@ -151,3 +151,28 @@ def test_frozen_models_load_and_read_a_photo(option):
         pytest.skip(f"{gb.default_checkpoint(option).name} not in models/checkpoints/")
     out = gb.recognise(gb.load_model(option), _photo("38"))
     assert len(out["results"]) == 2
+
+
+# segmentation choice and Generate from folder
+
+def test_gui_segmentation_choice_reaches_read_image():
+    seen = []
+
+    class Spy(Recogniser):
+        def read_image(self, image, allowed=None, method=None):
+            seen.append(method)
+            return super().read_image(image, allowed, method="contours")
+
+    rec = Spy("fake", model=FakeModel(one_hot_ish(DEFAULT_LABELS, "7", "1")))
+    for label, method in gb.SEGMENTATIONS.items():
+        gb.recognise(rec, _photo("38"), method)
+    assert seen == ["repaired", "contours"] and list(gb.SEGMENTATIONS)[0].startswith("Repaired")
+
+
+def test_generate_from_folder_gives_an_image_the_gui_can_show():
+    if not gb.DEFAULT_DIGIT_FOLDER.is_dir():
+        pytest.skip("team digit photos not present")
+    img, text = gb.generate_from_folder(text="4096", seed=0)
+    assert text == "4096" and isinstance(img, Image.Image) and img.width > img.height
+    img, text = gb.generate_from_folder(text="", n_digits=3, expression=True, seed=1)
+    assert any(c in text for c in "+-*/")

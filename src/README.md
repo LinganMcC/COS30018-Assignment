@@ -66,6 +66,9 @@ this together with a model.)
 |---|---|---|
 | `segment_digits(image, method="contours", keep_operators=False, ...)` | `segmentation.py` | `(crops, boxes)`; methods: `contours`, `connected_components`, `projection`, `watershed` |
 | `segment_expression(image, method="contours")` | `segmentation.py` | the same, with operators kept and the bar and dots of `÷` merged into one box |
+| `segment_digits_repaired(image, scorer)` | `segmentation_split.py` | the second-round segmenter the system uses for numbers: ruled lines out, contours, stacked pieces merged, wide boxes cut where `scorer` reads the pieces best; returns `(photo crops, boxes)` |
+| `remove_ruled_lines(image)` | `page_cleanup.py` | the photo with ink running edge to edge painted out |
+| `make_number(folder, text="", n_digits=4, expression=False)` | `number_from_folder.py` | `(image, text)`: a number or expression image built from a folder of digit images (GUI input mode) |
 | `annotate(image, boxes, labels=None)` | `segmentation.py` | a copy of the image with the boxes drawn |
 | `preprocess(image, config="otsu_mnist_box", flatten=False, add_channel=False)` | `preprocessing.py` | one 28×28 image (or a 784-vector with `flatten=True`) |
 | `preprocess_batch(images, config=...)` | `preprocessing.py` | a stacked array |
@@ -81,6 +84,9 @@ this together with a model.)
 | `preprocessing.py` | Task 1: grayscale, median denoise, Otsu or adaptive threshold, 20×20 MNIST box, centre of mass, normalise; 8 named configurations | imported |
 | `segmentation.py` | Task 2: four classical segmentation methods, operator support, `÷` handling | imported |
 | `segmentation_ml.py` | Task 2: six model-based methods: sliding window with MLP / CNN / SVM / Random Forest, cut points, confidence split | imported |
+| `segmentation_split.py` | Task 2, second round: repairs `contours` output – merges stacked pieces, cuts boxes too wide for one digit (projection, drop-fall or recognition cuts) | imported (by `models/cnn/inference.py`) |
+| `page_cleanup.py` | removes ruled lines from a photo; deskew (tried, not used) | imported |
+| `number_from_folder.py` | image acquisition: builds a number (or expression) image from a folder of digit images – subfolders `0/`–`9/` or files named `3_01.jpg`, MNIST or photos – for the GUI | `python src/number_from_folder.py data/custom_samples/digits --text 4096` |
 | `digit_classifier.py` | the four classifiers used by `segmentation_ml.py`, with an extra "not a digit" class | `python src/digit_classifier.py` (trains and caches them, ~5 s) |
 | `generate_number.py` | builds multi-digit number images (or expressions) from single-digit images, with ground truth | `python src/generate_number.py --count 30` |
 | `prepare_data.py` | writes MNIST digits as PNG files to `data/raw/<digit>/` (input for the generator) | `python src/prepare_data.py` |
@@ -112,6 +118,7 @@ All outputs go to `reports/`.
 | `python experiments/plot_model_results.py` | the four model-based segmenters in one chart | `demo_segmentation.py` | `segmentation_models_chart.png` |
 | `python experiments/make_segmentation_figures.py` | the two segmentation figures used in the report | `generate_number.py`, `digit_classifier.py` | `segmentation_methods.png`, `segmentation_touching.png` |
 | `python experiments/evaluate_custom.py` | preprocessing and segmentation on the **real** photos (3–4 min); `--all-methods`, `--all-configs`, `--model mlp` | – | `custom_preprocessing.csv`, `custom_segmentation.csv`, `custom_results_by_image.csv`, `custom_demo/` |
+| `python experiments/evaluate_split.py` | Task 2 second round: `contours` against the repairs (three cut strategies, ruled lines, deskew); parameters chosen on John's two sheets + generated numbers, scored on the other four sheets; `--tune`, `--count-only`, `--figure` | `generate_number.py` for the development set | `split_comparison.csv`, `split_examples.png` |
 | `python experiments/evaluate_operators.py` | segmentation of expressions with and without operator support, and what it costs on digit photos | `generate_number.py --expressions --count 40` | `operator_segmentation.csv`, `operator_cost.csv`, `operator_segmentation.png` |
 
 ---
