@@ -1,0 +1,26 @@
+{
+  "model": "hog_svm",
+  "hog": "hog4",
+  "hog_settings": {
+    "orientations": 9,
+    "pixels_per_cell": [
+      4,
+      4
+    ],
+    "cells_per_block": [
+      2,
+      2
+    ]
+  },
+  "params": {
+    "C": 5.0,
+    "gamma": "scale*2"
+  },
+  "tuning_val_accuracy": 0.9841666666666666,
+  "val_accuracy": 0.989,
+  "test_accuracy": 0.9892,
+  "train_images": 54000,
+  "training_time_s": 1908.142638206482,
+  "size": 14398,
+  "file_mb": 16.1
+}

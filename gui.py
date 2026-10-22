@@ -17,7 +17,7 @@ try:
 except ImportError:  
     HAS_DND = False
 
-# CNN backend (models/cnn/gui_backend.py)
+# Model backend for every option (models/cnn/gui_backend.py)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "cnn"))
 import gui_backend as cnn_backend
 
@@ -26,7 +26,8 @@ from expression_parser import evaluate_expression
 
 # Constants
 IMAGE_TYPES = ("png", "jpg", "jpeg", "bmp")
-MODEL_OPTIONS = list(cnn_backend.CNN_OPTIONS)  # ["CNN", "CNN + operators"]
+MODEL_OPTIONS = list(cnn_backend.NEURAL_OPTIONS) + list(cnn_backend.CLASSICAL_OPTIONS)
+# ["CNN", "CNN + operators", "MLP", "SVM", "Random Forest"]
 EXPRESSION_MODEL = "CNN + operators"  # the option whose output is evaluated as arithmetic
 PRETRAINED_DIR = "pretrained_models"
 PRETRAINED_TYPES = (".keras", ".h5", ".pt", ".pth", ".pkl", ".joblib")
@@ -285,7 +286,7 @@ class HNRSApp:
             return
 
         try:
-            out = cnn_backend.recognise_cnn(self.models[model_name], self.original_image)
+            out = cnn_backend.recognise(self.models[model_name], self.original_image)
         except Exception as e:
             messagebox.showerror("Recognition failed", str(e))
             return
@@ -360,7 +361,7 @@ class HNRSApp:
         """Called automatically when Pretrained is selected or the model changes.
         Uses a model already loaded for this name, else looks in PRETRAINED_DIR
         for a file whose name starts with the model name (e.g. cnn_mnist.keras),
-        else falls back to the frozen checkpoint from the CNN backend."""
+        else falls back to the frozen model in models/checkpoints/."""
         name = self.model_var.get()
         if name in self.loaded_from:
             self.weights_var.set(f"Loaded: {os.path.basename(self.loaded_from[name])}")
@@ -374,8 +375,8 @@ class HNRSApp:
                     self.load_pretrained_file(os.path.join(PRETRAINED_DIR, f))
                     return
 
-        if cnn_backend.default_checkpoint(name).is_file():
-            # Nothing in pretrained_models/: use the frozen CNN
+        if cnn_backend.is_supported(name) and cnn_backend.default_checkpoint(name).is_file():
+            # Nothing in pretrained_models/: use the frozen model in models/checkpoints/
             self.weights_var.set("Loading... (first load takes a few seconds)")
             self.root.update_idletasks()
             self.load_pretrained_file(str(cnn_backend.default_checkpoint(name)))
@@ -386,7 +387,7 @@ class HNRSApp:
     def load_pretrained_file(self, path):
         name = self.model_var.get()
         try:
-            self.models[name] = cnn_backend.load_cnn(name, path)
+            self.models[name] = cnn_backend.load_model(name, path)
         except Exception as e:
             messagebox.showerror("Could not load model", f"{os.path.basename(path)}\n\n{e}")
             return
@@ -413,18 +414,24 @@ class HNRSApp:
         self.history = {"loss": [], "acc": []}
         self._redraw_curves()
         self.stop_event.clear()
-        self.progress.config(maximum=params["epochs"], value=0)
+        self.progress.config(maximum=cnn_backend.training_steps(model_name, params), value=0)
         self.train_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.nb.select(self.tab_train)
-        self._set_status(f"Training {model_name}...")
+        if cnn_backend.is_classical(model_name):
+            self._set_status(f"Training {model_name} on {cnn_backend.CLASSICAL_TRAIN_IMAGES:,} "
+                             "MNIST images with its tuned settings (SVM about 3 minutes, Random Forest "
+                             "under 1; "
+                             "epochs, batch size and learning rate do not apply)...")
+        else:
+            self._set_status(f"Training {model_name}...")
 
         def worker():
             def on_epoch(epoch, loss, acc):
                 self.train_queue.put(("epoch", epoch, loss, acc))
 
             try:
-                model = cnn_backend.train_cnn(model_name, params, on_epoch, self.stop_event)
+                model = cnn_backend.train_model(model_name, params, on_epoch, self.stop_event)
             except Exception as e:  # show the error instead of hanging
                 self.train_queue.put(("error", model_name, e))
                 return

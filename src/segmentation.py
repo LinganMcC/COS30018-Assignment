@@ -86,6 +86,39 @@ def _merge_stacked(boxes: list[tuple[int, int, int, int]], min_overlap: float = 
     return merged
 
 
+def _attach_dots(bars: list[tuple[int, int, int, int]],
+                 dots: list[tuple[int, int, int, int]], reference_height: int
+                 ) -> list[tuple[int, int, int, int]]:
+    """Grow each bar to cover the small dots directly above or below it.
+
+    Handwritten division dots are often only 6-17 % of the digit height (median
+    10 % on the team's 359 photographed divisions), below the blob limit in
+    _is_operator_shape, so a division sign arrived as its bar alone and was read
+    as a minus. Such a dot is kept only when its centre lies within the bar's
+    columns and close above or below it; every other small speck is still dropped.
+    """
+    out = []
+    for (x, y, w, h) in bars:
+        if w < 2 * h:                      # only bars can be division signs
+            out.append((x, y, w, h))
+            continue
+        x0, y0, x1, y1 = x, y, x + w, y + h
+        for (dx, dy, dw, dh) in dots:
+            cx, cy = dx + dw / 2, dy + dh / 2
+            if x <= cx <= x + w and abs(cy - (y + h / 2)) <= 0.6 * reference_height:
+                x0, y0 = min(x0, dx), min(y0, dy)
+                x1, y1 = max(x1, dx + dw), max(y1, dy + dh)
+        out.append((x0, y0, x1 - x0, y1 - y0))
+    return out
+
+
+def _is_small_dot(box: tuple[int, int, int, int], reference_height: int) -> bool:
+    """A roughly round mark 4-15 % of the digit height: a possible division dot."""
+    _, _, w, h = box
+    return (h > 0 and 0.4 <= w / h <= 2.5
+            and 0.04 * reference_height <= max(w, h) < 0.15 * reference_height)
+
+
 def _filter_boxes(boxes: list[tuple[int, int, int, int]], image_shape: tuple[int, int],
                   min_area_ratio: float, min_height_ratio: float,
                   keep_operators: bool = False
@@ -104,7 +137,7 @@ def _filter_boxes(boxes: list[tuple[int, int, int, int]], image_shape: tuple[int
     img_h, img_w = image_shape[:2]
     img_area = img_h * img_w
     reference_height = max((h for (_, _, _, h) in boxes), default=0)
-    digits, operators = [], []
+    digits, operators, dots = [], [], []
     for (x, y, w, h) in boxes:
         digit_sized = (w * h >= min_area_ratio * img_area
                        and h >= min_height_ratio * img_h)
@@ -112,7 +145,9 @@ def _filter_boxes(boxes: list[tuple[int, int, int, int]], image_shape: tuple[int
             digits.append((x, y, w, h))
         elif keep_operators and _is_operator_shape((x, y, w, h), reference_height):
             operators.append((x, y, w, h))
-    return digits + _merge_stacked(operators)
+        elif keep_operators and _is_small_dot((x, y, w, h), reference_height):
+            dots.append((x, y, w, h))
+    return digits + _attach_dots(_merge_stacked(operators), dots, reference_height)
 
 
 def segment_by_contours(image: np.ndarray, min_area_ratio: float = 0.002,
