@@ -240,17 +240,89 @@ pair. Restricting the merge to operator-shaped boxes removed that regression,
 and it also means that turning the flag on can only *add* boxes — a digit found
 with the flag off is still found, as its own box, with it on.
 
-## 7. Known limitations
+## 7. Second round: repairing touching and broken digits
 
-**Touching digits are the main open limitation.** On the generated set
+After the first comparison, touching digits were the largest single source of
+error, so segmentation was developed further rather than left as a documented
+limitation. `contours` stays the first pass; its boxes are then repaired in two
+steps (`src/segmentation_split.py`):
+
+1. **Merge.** Two pieces that share most of their columns and are stacked one
+   above the other are one digit drawn in two strokes, such as a 5 whose bar
+   does not touch its body. Pieces side by side at the same height are left
+   alone, so a slanted 1 leaning over a 0 is not joined to it.
+2. **Split.** A box too wide to hold one digit is cut. Three ways of placing the
+   cut were implemented and compared:
+    - **projection:** the emptiest column near each expected cut, searched inside
+      the box only (unlike the whole-image `projection` method of section 4);
+    - **drop-fall:** a path falls from the top edge and slides round strokes
+      instead of cutting them, following the curved gap between two digits;
+    - **recognition:** for one to four digits, several candidate cuts are read by
+      `cnn_best`, and the option whose least certain piece is most certain wins,
+      with a penalty for disagreeing with the count the box's width suggests.
+
+A cut piece is read from the photo with its neighbour's ink painted out, so the
+classifier sees that digit alone. Pieces that were not cut are cropped exactly as
+before: painting out on every piece was tried and lowered exact reading of
+separate numbers on the development set from 79 % to 74 %, because a digit drawn
+in two separate strokes lost one of them.
+
+**Development and held-out sets.** Every parameter was chosen on John's two
+original sheets plus the generated numbers (57 numbers, 18 touching). The four
+sheets added later, by Thien, Liam, Russell and the lined sheet (72 numbers,
+17 touching), were not looked at until the method was fixed, and are reported
+separately (`experiments/evaluate_split.py` → `reports/split_comparison.csv`).
+
+| Held-out, 72 numbers | Right count | Touching | Separate | Read exactly | Touching | Separate |
+|---|---|---|---|---|---|---|
+| `contours` | 75 % | 6 % | 96 % | 62 % | 0 % | 82 % |
+| merge | 75 % | 6 % | 96 % | 62 % | 0 % | 82 % |
+| merge + projection | 76 % | 12 % | 96 % | 62 % | 0 % | 82 % |
+| merge + drop-fall | 76 % | 12 % | 96 % | 64 % | 6 % | 82 % |
+| **merge + recognition** | **79 %** | **24 %** | 96 % | **67 %** | **18 %** | 82 % |
+
+On all 99 real numbers the repaired segmenter reads 68 % exactly against 64 % for
+`contours` (both with `cnn_best`), and 20 % of touching numbers against 8 %. It
+fixed four numbers and lost none (`reports/split_examples.png`).
+
+The gain is real but modest, and it is honest to say why. Many of the touching
+numbers in the test set are not two digits meeting at one point but strokes
+written across each other: a 7 drawn through a 5 and a 3, or an 8 drawn over a 3.
+No vertical or drop-fall cut separates those, and the model cannot read a crop
+that holds parts of two digits. The merge step on its own changed nothing on the
+held-out sheets; it helps only in combination with splitting, as in 13579, where
+the 1 was drawn in two strokes and the 7 and 9 touched.
+
+**Photo cleanup.** Two steps that act on the photo before segmentation were
+also tried on top of the best repair: removing ruled lines and deskewing slanted
+writing (`src/page_cleanup.py`).
+
+| Held-out, 72 numbers | Right count | Read exactly | Touching, read exactly |
+|---|---|---|---|
+| merge + recognition | 79 % | 67 % | 18 % |
+| + ruled lines removed | 79 % | 67 % | 18 % |
+| + deskew | 78 % | 68 % | 12 % |
+| + both | 78 % | 68 % | 12 % |
+
+Removing ruled lines changed no number: a line under a row of writing is its own
+region and the size filter already drops it. It matters for single digits, where
+it lifts the lined sheet from 7 to 17 of 20 (Task 1, section 6b), so it is part
+of the system's entry point. Deskewing lowered exact reading on the development
+set from 70 % to 67 %, and because every choice was made on the development set
+it was rejected, even though it is one number higher on the held-out sheets.
+
+The recognition-based repair needs the model loaded before segmentation can
+run, so it is provided as a separate entry point, `segment_digits_repaired(image,
+scorer)`, which also removes ruled lines first, and `segment_digits()` keeps the model-free `contours` default.
+
+## 8. Known limitations
+
+**Touching digits remain the main limitation.** On the generated set
 `contours` scores 90 % on widely spaced numbers, 80 % on tight ones and 40 % on
 touching ones; on the real photographs 3 of the 25 numbers with touching digits
-are counted correctly, against 96 % of the numbers whose digits are apart. Two
-touching digits are one connected region, so a connectivity-based method cannot
-see them as two by construction. The alternatives were implemented —
-`watershed`, `confidence_split` and four sliding-window models — and none beat
-`contours` overall on real data, so the limitation stands rather than being
-traded for a worse average.
+are counted correctly, against 96 % of the numbers whose digits are apart. The
+second-round repair (section 7) raises touching numbers read exactly from 8 % to
+20 %; digits written across each other are still beyond it.
 
 **Segmentation, not classification, is what loses most numbers.** Of the 38
 numbers read wrongly in the end-to-end test, 25 were split into the wrong number

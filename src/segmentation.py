@@ -379,6 +379,16 @@ METHODS = {
 # numbers). 22 of the 38 numbers read wrongly are touching ones split into
 # too few pieces.
 #
+# Second round (src/segmentation_split.py, experiments/evaluate_split.py):
+# contours stays the first pass and its boxes are repaired - stacked pieces
+# merged, boxes too wide for one digit split. Of three ways to place the cut,
+# the recognition-based one (candidate cuts read by cnn_best, the most
+# confident kept) did best on the held-out sheets: exact numbers 62% -> 67%,
+# touching numbers 0% -> 18%. On all 99 real numbers: 64% -> 68%, and no
+# number that contours read correctly was lost. It needs the model loaded,
+# so the model-free default here stays contours and the repaired segmenter
+# is a separate entry point, segment_digits_repaired().
+#
 # keep_operators (the extension) is off by default, and the reason is measured.
 # On the first 27 real numbers, correct-count accuracy with the flag on:
 #

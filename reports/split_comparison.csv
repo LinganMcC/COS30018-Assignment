@@ -1,0 +1,21 @@
+method,set,images,count,count_touching,count_separate,exact,exact_touching,exact_separate
+contours,development,57,0.7193,0.3333,0.8974,0.6491,0.3333,0.7949
+contours,held-out,72,0.75,0.0588,0.9636,0.625,0.0,0.8182
+merge,development,57,0.7018,0.3333,0.8718,0.6491,0.3333,0.7949
+merge,held-out,72,0.75,0.0588,0.9636,0.625,0.0,0.8182
+merge + projection,development,57,0.7544,0.5,0.8718,0.6842,0.3889,0.8205
+merge + projection,held-out,72,0.7639,0.1176,0.9636,0.625,0.0,0.8182
+merge + dropfall,development,57,0.7544,0.5,0.8718,0.6842,0.3889,0.8205
+merge + dropfall,held-out,72,0.7639,0.1176,0.9636,0.6389,0.0588,0.8182
+merge + recognition,development,57,0.7544,0.5,0.8718,0.7018,0.4444,0.8205
+merge + recognition,held-out,72,0.7917,0.2353,0.9636,0.6667,0.1765,0.8182
+lines + contours,development,57,0.7193,0.3333,0.8974,0.6491,0.3333,0.7949
+lines + contours,held-out,72,0.75,0.0588,0.9636,0.625,0.0,0.8182
+deskew + contours,development,57,0.7018,0.2222,0.9231,0.6316,0.2222,0.8205
+deskew + contours,held-out,72,0.7361,0.0588,0.9455,0.6389,0.0,0.8364
+lines + recognition,development,57,0.7544,0.5,0.8718,0.7018,0.4444,0.8205
+lines + recognition,held-out,72,0.7917,0.2353,0.9636,0.6667,0.1765,0.8182
+deskew + recognition,development,57,0.7368,0.5,0.8462,0.6667,0.3889,0.7949
+deskew + recognition,held-out,72,0.7778,0.1765,0.9636,0.6806,0.1176,0.8545
+lines + deskew + recognition,development,57,0.7368,0.5,0.8462,0.6667,0.3889,0.7949
+lines + deskew + recognition,held-out,72,0.7778,0.1765,0.9636,0.6806,0.1176,0.8545

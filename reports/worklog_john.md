@@ -422,3 +422,70 @@ The second is a repeat of the `projection` lesson from Sprint 3, which I apparen
 - Re-measure the expression figures on real handwritten operators as soon as the samples exist.
 - Send the model table to Thien and Liam for the Task 3 model selection.
 - Support Russell wiring `segment_expression()` into the GUI and the parser.
+
+
+## Week 11 — w/c 19 Oct 2026
+
+### Segmentation, second round
+
+The tutor asked for segmentation to be developed further, and the measurements
+agree on where: 22 of the 38 real numbers read wrongly were touching digits
+merged into too few boxes. I kept `contours` as the first pass and added two
+repairs in `src/segmentation_split.py`: merge pieces stacked in the same columns,
+and split boxes too wide for one digit. For the split I implemented three ways of
+placing the cut - the emptiest column inside the box, a drop-fall path, and a
+recognition-based choice where `cnn_best` reads several candidate cuts.
+
+Before tuning anything I split the real set: my two original sheets plus the
+generated numbers for development, the four later sheets held out. A repair tuned
+on the images it is scored on would look better than it is.
+
+| Held-out, 72 numbers | Right count | Read exactly | Touching, read exactly |
+|---|---|---|---|
+| contours | 75% | 62% | 0% |
+| merge + projection | 76% | 62% | 0% |
+| merge + drop-fall | 76% | 64% | 6% |
+| merge + recognition | 79% | 67% | 18% |
+
+On all 99 real numbers: 64% -> 68% exact, touching 8% -> 20%, four numbers fixed
+and none lost.
+
+Two things did not work and are recorded. Painting every neighbour's ink out of
+every crop lowered separate numbers from 79% to 74% on the development set, because
+a 9 drawn as a loop plus a separate stem lost its stem; now only pieces that were
+actually cut are painted. And the merge step alone changed nothing on held-out
+data; it only helps together with splitting.
+
+Merging main first: Thien's change to `center_by_mass` (keeping a 1 px border)
+left the selected pipeline's figures unchanged (see the correction below).
+
+### Two more photo-level steps: one kept, one rejected
+
+Of the 32 numbers still wrong after the repair, 11 were on the lined sheet and 17
+were touching digits. I tried two cheap fixes that act on the photo before
+segmentation (`src/page_cleanup.py`).
+
+Ruled-line removal paints out ink that runs edge to edge across the photo. On
+numbers it changed nothing, because a line under a number is already a separate
+region that the size filter drops. On single digits it was the biggest gain of
+the week: the lined sheet went from 7 to 17 of 20 with `cnn_best` (6 to 9 with
+LeNet), and not one digit on the plain sheets changed. It cannot go inside
+`preprocess()`, because on a tight crop the bar of a 7 also runs edge to edge.
+
+Deskewing shears slanted writing upright using the ink's moments. My first
+version measured the slant of the whole number at once and made 104 and 17 *more*
+slanted - a number written along a rising line looks slanted even if each digit
+is upright - so it now takes the median slant of the digit-sized regions. Even
+fixed, it lowered whole numbers on the development set from 70% to 67%, so I did
+not adopt it, although it was one number better on the held-out sheets. Choosing
+it because of the held-out result would defeat the point of holding them out.
+
+A correction: I had written that Thien's `center_by_mass` change left every
+figure unchanged. I had only re-checked the selected configuration.
+`otsu_denoised_centered`, which calls that function, moved from 79.9% to 77.9%
+on single digits. The report table is updated; the selection is unaffected.
+
+### Next week
+
+- Ask Thien whether `Recogniser.read_image` should call `segment_digits_repaired`.
+- Finish the report sections and Sprint Report 4.

@@ -201,7 +201,7 @@ CONFIGS = {
 #                          MNIST, 5 seeds    149 real digits   99 real numbers,
 #                          (team LeNet)      (single crops)    read end to end*
 #   otsu_mnist_box    <-   0.960 +/- 0.005      81.9%              62%
-#   otsu_denoised_centered 0.956 +/- 0.005      79.9%               7%
+#   otsu_denoised_centered 0.956 +/- 0.005      77.9%**             7%
 #   otsu                   0.967 +/- 0.006      76.5%               1%
 #   otsu_denoised          0.959 +/- 0.005      76.5%               1%
 #   adaptive               0.967 +/- 0.003      63.1%               2%
@@ -211,6 +211,8 @@ CONFIGS = {
 #
 #   * segmented with SELECTED_METHOD (contours), each crop classified by the
 #     team CNN, number counted right only if every digit is right.
+#   ** 79.9% before Thien's change to center_by_mass (keep a 1 px border),
+#      which this configuration uses; every other figure was unchanged.
 #   Real set: six sheets by four writers, one of them on hand-ruled lines with
 #   slanted writing (reports/custom_test_set.csv, data/custom_samples/sheets.csv).
 #
@@ -220,7 +222,7 @@ CONFIGS = {
 #    0, as in MNIST, while grayscale_only leaves a grey haze the CNN never saw.
 # 3. End to end, the 20x20 box is essential: segmentation hands over tight
 #    crops, and a plain resize stretches them to fill 28x28. otsu_denoised_
-#    centered is second on single digits (79.9%, 3 images behind) but reads
+#    centered is second on single digits (77.9%, 6 images behind) but reads
 #    7% of numbers; with the box, Otsu reads 62%.
 #
 # otsu_mnist_box is the only configuration at the top of both real tests. On
@@ -231,6 +233,13 @@ CONFIGS = {
 # drop to 30% (6 of 20), against 90% on the five plain sheets. Otsu keeps the
 # line as ink and the 20x20 box fits around it, so a digit sitting on a line
 # arrives with a bar along its base; 7 of the 14 errors were read as "2".
+# Addressed at the photo level, before preprocessing: page_cleanup.
+# remove_ruled_lines() paints out ink that runs edge to edge across the photo.
+# Measured on the 149 single digits (parameters fixed beforehand, not tuned
+# on these images): lined sheet 6 -> 9 of 20 with LeNet, 7 -> 17 with
+# cnn_best; the five plain sheets unchanged with both. It is not part of
+# preprocess() itself, because a tight crop from segmentation has no margin,
+# and there the bar of a 7 also runs edge to edge.
 SELECTED_CONFIG = "otsu_mnist_box"
 
 

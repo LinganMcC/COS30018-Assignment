@@ -144,8 +144,10 @@ python gui.py          # from the repository root
    `data/custom_samples/expressions/ready/`.
 
 4. Press **Recognise Number**. The result appears under *Output* with a
-   confidence for every symbol. The *Preprocessed* tab shows the binary image,
-   and the *Segments* tab shows each box and the exact 28×28 image the model saw.
+   confidence for every symbol. With *CNN + operators*, the expression is also
+   calculated (`expression_parser.py`), e.g. `(3+4)*5 = 35`. The *Preprocessed*
+   tab shows the binary image, and the *Segments* tab shows each box and the
+   exact 28×28 image the model saw.
 
 Every model option uses the project's own preprocessing and segmentation
 (section 3), so all five see exactly the same 28×28 inputs – the GUI reads the
@@ -263,6 +265,11 @@ can tell them apart. Full table: `reports/report_task1_preprocessing.md`.
 Projection wins on generated numbers but fails on real handwriting. Digits that
 touch are the main limitation. Full analysis: `reports/report_task2_segmentation.md`.
 
+A second round (`src/segmentation_split.py`) repairs touching digits by cutting
+wide boxes where the model reads the pieces most confidently: 64 % → 68 % of
+real numbers read exactly, touching numbers 8 % → 20 %. It is not yet used by
+the GUI (`reports/report_task2_segmentation.md`).
+
 **Task 3 – recognition techniques** (three families, each model at its best tuned settings)
 
 | Model | Family | MNIST test | MNIST shifted | Real single digits (149) | Real numbers, whole number (99) |
@@ -318,6 +325,7 @@ for a laptop CPU.
 | Task 1 + 2 summary of every technique (no TensorFlow) | `python experiments/show_techniques.py` | 5 s | terminal + `reports/*_visual.png` |
 | Task 1 + 2 on real photos | `python experiments/evaluate_custom.py` | 3–4 min | `reports/custom_*.csv` |
 | Task 2 on generated numbers (run the data steps in 1.4 first) | `python experiments/demo_segmentation.py` | 10 s | `reports/segmentation_comparison.csv` |
+| Task 2, second round: repairing touching and broken digits (tuned on John's two sheets + generated numbers, scored on the other four sheets) | `python experiments/evaluate_split.py` (`--figure` for before/after images) | 3–5 min | `reports/split_comparison.csv`, `reports/split_examples.png` |
 | Task 3 classical baselines (train once) | `python evaluation/baselines.py` | 30–40 min | `models/checkpoints/hog_*.joblib`, `evaluation/results/baseline_tuning.csv` |
 | Task 3 + 4 all six models on every test set | `python evaluation/generated_set.py` (once) → `python evaluation/evaluate_all.py` | 5–10 min | `evaluation/results/model_comparison.md`, charts |
 | Task 4 failure analysis | `python evaluation/error_analysis.py` | 1 min | `evaluation/results/failure_analysis.md`, `failure_gallery.png` |
@@ -340,6 +348,7 @@ needed to use or evaluate the system.
 ```
 COS30018-Assignment/
 ├── gui.py                      the graphical interface (start here)
+├── expression_parser.py        calculates a recognised expression (precedence, brackets, no eval())
 ├── requirements.txt            exact package versions
 ├── src/                        Task 1 preprocessing, Task 2 segmentation, data tools   → src/README.md
 ├── experiments/                Task 1 + 2 comparison scripts                           → src/README.md
@@ -406,7 +415,7 @@ many numbers can be cut automatically with `src/split_sheet.py`.
 | GUI – build a number from a folder of digit images | **open** – Russell (`src/generate_number.py` exists) |
 | GUI – MLP / SVM / Random Forest options, pretrained or train new | done |
 | Extension – recognise handwritten expressions | done (87.5 % exact on unseen writers) |
-| Extension – calculate the result with a parser (operator precedence, brackets, no `eval()`) | **open** – Russell |
+| Extension – calculate the result with a parser (operator precedence, brackets, no `eval()`) | done (`expression_parser.py`; shown in the GUI) |
 
 **Known limitations (measured, with the evidence in the files named):**
 
