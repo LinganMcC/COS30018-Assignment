@@ -40,6 +40,14 @@ GUI_RUNS = REPO_ROOT / "models" / "gui_runs"   # GUI-trained models (git-ignored
 EVALUATION = REPO_ROOT / "evaluation"
 CLASSICAL_TRAIN_IMAGES = 10_000   # GUI training subset: about a minute instead of 25
 
+# GUI segmentation choice -> inference.segment_number method (numbers only;
+# expressions always use the operator-aware contours segmentation)
+SEGMENTATIONS: Dict[str, str] = {
+    "Repaired (default)": "repaired",   # contours + touching digits cut (src/segmentation_split.py)
+    "Contours (Task 2)": "contours",    # one box per connected region of ink
+}
+DEFAULT_DIGIT_FOLDER = REPO_ROOT / "data" / "custom_samples" / "digits"
+
 
 def is_cnn(model_name: str) -> bool:
     return model_name in CNN_OPTIONS
@@ -241,15 +249,18 @@ def _to_bgr(pil_image) -> np.ndarray:
     return cv2.cvtColor(np.array(pil_image.convert("RGB")), cv2.COLOR_RGB2BGR)
 
 
-def recognise_cnn(model: Recogniser, pil_image) -> dict:
-    """Read an image with any loaded model; returns text, results, boxes, thumbs (28x28) and binary."""
+def recognise_cnn(model: Recogniser, pil_image, segmentation: Optional[str] = None) -> dict:
+    """Read an image with any loaded model; returns text, results, boxes, thumbs (28x28) and binary.
+
+    segmentation: "repaired" (default) or "contours" - see SEGMENTATIONS.
+    """
     from PIL import Image
     if str(REPO_ROOT / "src") not in sys.path:
         sys.path.insert(0, str(REPO_ROOT / "src"))
     from segmentation import _prepare_binary
 
     bgr = _to_bgr(pil_image)
-    text, details = model.read_image(bgr)    # project preprocessing + segmentation
+    text, details = model.read_image(bgr, method=segmentation)   # project preprocessing + segmentation
     return {
         "text": text,
         "results": [(d["label"], d["confidence"]) for d in details],
@@ -260,3 +271,18 @@ def recognise_cnn(model: Recogniser, pil_image) -> dict:
 
 
 recognise = recognise_cnn   # the same pipeline serves every option
+
+
+def generate_from_folder(folder: Optional[str] = None, text: str = "", n_digits: int = 4,
+                         expression: bool = False, seed: Optional[int] = None):
+    """Input mode 1: a number (or expression) image built from a folder of digit images.
+
+    Returns (PIL image, the text it shows). Empty `text` -> a random one.
+    See src/number_from_folder.py for the accepted folder layouts.
+    """
+    from PIL import Image
+    if str(REPO_ROOT / "src") not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT / "src"))
+    from number_from_folder import make_number
+    image, shown = make_number(folder or DEFAULT_DIGIT_FOLDER, text, n_digits, expression, seed)
+    return Image.fromarray(image), shown

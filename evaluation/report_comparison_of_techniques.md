@@ -47,23 +47,25 @@ All six use the same fixed MNIST split – 54,000 training, 6,000 validation,
 
 | Model | MNIST test | MNIST shifted | Real digits (149) | Real numbers, whole number (99) | Generated numbers, whole number (600) |
 |---|---|---|---|---|---|
-| HOG + SVM | 98.9 % | 78.0 % | 79.9 % | 53.5 % | 49.7 % |
-| HOG + Random Forest | 97.7 % | 77.2 % | 73.2 % | 48.5 % | 46.7 % |
-| MLP | 99.0 % | 96.9 % | 57.0 % | 27.3 % | 53.8 % |
-| LeNet-5 | 99.3 % | 98.1 % | 83.9 % | 60.6 % | 58.0 % |
-| ResNet (small) | 99.6 % | 99.5 % | 83.9 % | 55.6 % | 58.0 % |
-| **VGG-deep** | **99.6 %** | 99.5 % | **86.6 %** | **63.6 %** | **60.0 %** |
+| HOG + SVM | 98.9 % | 78.0 % | 79.9 % | 56.6 % | 53.8 % |
+| HOG + Random Forest | 97.7 % | 77.2 % | 73.2 % | 49.5 % | 50.5 % |
+| MLP | 99.0 % | 96.9 % | 57.0 % | 29.3 % | 58.8 % |
+| LeNet-5 | 99.3 % | 98.1 % | 83.9 % | 64.6 % | 63.0 % |
+| ResNet (small) | 99.6 % | 99.5 % | 83.9 % | 58.6 % | 62.5 % |
+| **VGG-deep** | **99.6 %** | 99.5 % | **86.6 %** | **67.7 %** | **65.5 %** |
 
 *MNIST shifted* is the same 10,000 test images, each slightly rotated, shifted and
 zoomed. *Real* is photos of the team's own handwriting; *generated* is numbers
 composed from MNIST test digits. On real and generated numbers every model reads
-the same crops from the same segmentation, so the differences are recognition only.
+the same crops from the same segmentation (the system's repaired segmentation,
+whose cuts are chosen by `cnn_best` once for all models), so the differences
+are recognition only.
 
 ![Every model on every test set](results/comparison_chart.png)
 
 **Recognition alone.** Counting only the numbers that segmentation cut into the
-right number of pieces, VGG-deep reads 90.5 % of real digits and 96.0 % of
-generated digits correctly; the HOG SVM 84.1 % and 90.9 %; the MLP 55.9 % and 93.1 %.
+right number of pieces, VGG-deep reads 92.7 % of real digits and 94.6 % of
+generated digits correctly; the HOG SVM 86.2 % and 89.0 %; the MLP 57.8 % and 91.4 %.
 
 Per-digit precision, recall and F1 for every model: `results/mnist_per_class.csv`.
 VGG-deep's F1 on MNIST test is between 99.5 % and 99.9 % for every digit; its most
@@ -87,7 +89,7 @@ justify a choice; the other test sets were needed.
   only 57.0 % of real photographed digits – worse than the HOG SVM (79.9 %) –
   because real strokes differ in thickness and style from MNIST and the MLP has
   learned MNIST's pixels rather than the strokes. On real numbers it reaches
-  27.3 %.
+  29.3 %.
 - **The CNNs are best on every test set.** Convolutions learn local stroke
   patterns that transfer from MNIST to real handwriting.
 
@@ -97,16 +99,16 @@ same images, counting only images that one gets right and the other wrong
 
 | VGG-deep against | MNIST test | Real digits | Real numbers | Generated numbers |
 |---|---|---|---|---|
-| HOG + SVM | better (p < 0.001) | better (p = 0.021) | better (p = 0.006) | better (p < 0.001) |
+| HOG + SVM | better (p < 0.001) | better (p = 0.021) | better (p = 0.007) | better (p < 0.001) |
 | HOG + Random Forest | better (p < 0.001) | better (p < 0.001) | better (p < 0.001) | better (p < 0.001) |
 | MLP | better (p < 0.001) | better (p < 0.001) | better (p < 0.001) | better (p < 0.001) |
-| LeNet-5 | better (p < 0.001) | no significant difference (p = 0.39) | no significant difference (p = 0.38) | borderline (p = 0.05) |
-| ResNet (small) | no significant difference (p = 0.51) | no significant difference (p = 0.29) | better (p = 0.008) | better (p = 0.023) |
+| LeNet-5 | better (p < 0.001) | no significant difference (p = 0.39) | no significant difference (p = 0.45) | better (p = 0.020) |
+| ResNet (small) | no significant difference (p = 0.51) | no significant difference (p = 0.29) | better (p = 0.012) | better (p = 0.001) |
 
 VGG-deep is significantly better than both classical models and the MLP on every
 test set. Against the other two CNNs the picture is closer: it is significantly
-better than LeNet-5 on MNIST and than ResNet on real and generated numbers, and
-never significantly worse than either.
+better than LeNet-5 on MNIST and generated numbers and than ResNet on real and
+generated numbers, and never significantly worse than either.
 
 ## 5. Model selected for the system: VGG-deep (`cnn_best`)
 
@@ -116,7 +118,7 @@ never significantly worse than either.
    where a test was run, and significantly better than each other CNN on at least
    one real-world test set, never significantly worse.
 3. **Most robust to the variation real input brings:** the highest real-digit
-   (86.6 %) and real-number (63.6 %) accuracy, and 99.5 % on shifted MNIST.
+   (86.6 %) and real-number (67.7 %) accuracy, and 99.5 % on shifted MNIST.
 4. **Practical:** 0.59 M parameters, about 13 minutes to train on a laptop CPU,
    and fast enough to read a number in the GUI without a visible delay. ResNet is
    comparable on MNIST but took 32 minutes to train and is worse on real numbers.
@@ -132,6 +134,11 @@ which adds `+ − × ÷ ( )` (see `models/experiments/eval/retraining_report.md`
 - The classical models were tuned over 18 settings in total and the neural models
   over a similar number of runs; a wider search could narrow some gaps, but not
   the shift-robustness gap, which comes from how HOG features are built.
+- On numbers, `cnn_best` also chooses where the repaired segmentation cuts a
+  wide box, which could favour VGG-deep slightly. The ranking does not depend
+  on it: with plain `contours` segmentation (no model involved) VGG-deep was
+  also first on real numbers (63.6 %, LeNet-5 60.6 %, HOG + SVM 53.5 %) and
+  on generated numbers (60.0 %, LeNet-5 and ResNet 58.0 %).
 - All models were trained on MNIST only (the extension model aside); every model
   would gain from training on the team's own handwriting, as the extension's
   retraining showed (70.8 % → 87.5 % exact expressions).

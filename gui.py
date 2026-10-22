@@ -76,6 +76,12 @@ class HNRSApp:
         self.lr_var = tk.StringVar(value="0.001")
         self.arch_var = tk.StringVar(value=cnn_backend.CNN_ARCHS[0])
         self.aug_var = tk.StringVar(value="light")
+        self.seg_var = tk.StringVar(value=list(cnn_backend.SEGMENTATIONS)[0])
+        # Generate from folder (image acquisition mode 1)
+        self.gen_folder_var = tk.StringVar(value=os.path.relpath(cnn_backend.DEFAULT_DIGIT_FOLDER))
+        self.gen_text_var = tk.StringVar()
+        self.gen_digits_var = tk.IntVar(value=4)
+        self.gen_expr_var = tk.BooleanVar(value=False)
         self.status_var = tk.StringVar()
 
     # Layout
@@ -124,6 +130,8 @@ class HNRSApp:
         combo = self._row(box, "Model:", lambda p: ttk.Combobox(p, textvariable=self.model_var,
                                                                  values=MODEL_OPTIONS, state="readonly", width=14))
         combo.bind("<<ComboboxSelected>>", self._on_model_change)
+        self._row(box, "Segment:", lambda p: ttk.Combobox(p, textvariable=self.seg_var,
+                  values=list(cnn_backend.SEGMENTATIONS), state="readonly", width=14))
 
         # Train new or Pretrained
         src = tk.Frame(box, background=BG)
@@ -181,6 +189,23 @@ class HNRSApp:
         bar.pack(fill="x", pady=5, padx=5)
         ttk.Button(bar, text="Load image...", command=self.select_image).pack(side="left", padx=2)
         ttk.Button(bar, text="Clear", command=self.clear).pack(side="right", padx=2)
+
+        # Generate from folder: build the number image from single-digit images
+        gen = tk.LabelFrame(self.tab_input, text="Generate from a folder of digit images")
+        gen.pack(fill="x", padx=5)
+        row1 = tk.Frame(gen)
+        row1.pack(fill="x", padx=4, pady=2)
+        tk.Label(row1, text="Folder:").pack(side="left")
+        ttk.Entry(row1, textvariable=self.gen_folder_var).pack(side="left", fill="x", expand=True, padx=4)
+        ttk.Button(row1, text="Browse...", command=self.select_digit_folder).pack(side="left")
+        row2 = tk.Frame(gen)
+        row2.pack(fill="x", padx=4, pady=(0, 4))
+        tk.Label(row2, text="Number:").pack(side="left")
+        ttk.Entry(row2, textvariable=self.gen_text_var, width=16).pack(side="left", padx=4)
+        tk.Label(row2, text="(empty = random)   Digits:").pack(side="left")
+        ttk.Spinbox(row2, from_=1, to=10, textvariable=self.gen_digits_var, width=4).pack(side="left", padx=4)
+        tk.Checkbutton(row2, text="Expression", variable=self.gen_expr_var).pack(side="left", padx=4)
+        ttk.Button(row2, text="Generate", command=self.generate_number).pack(side="right")
 
         self.drop_box = tk.Frame(self.tab_input, relief="solid", borderwidth=2, background=BG)
         self.drop_box.pack(fill="both", expand=True, padx=5, pady=5)
@@ -254,6 +279,26 @@ class HNRSApp:
         except Exception as e:
             self.image_label.config(image="", text=f"Could not load image\n{e}")
 
+    def select_digit_folder(self):
+        path = filedialog.askdirectory(title="Folder of digit images (0/ to 9/, or files named 3_01.jpg)")
+        if path:
+            self.gen_folder_var.set(path)
+
+    def generate_number(self):
+        """Image acquisition mode 1: build the input image from single-digit images."""
+        try:
+            img, text = cnn_backend.generate_from_folder(
+                self.gen_folder_var.get().strip(), self.gen_text_var.get(),
+                int(self.gen_digits_var.get()), self.gen_expr_var.get())
+        except (ValueError, FileNotFoundError, tk.TclError) as e:
+            messagebox.showerror("Cannot generate", str(e))
+            return
+        self.set_input_image(img)
+        status = f"Generated '{text}' from the digit images in {self.gen_folder_var.get()}."
+        if self.gen_expr_var.get() and self.model_var.get() != EXPRESSION_MODEL:
+            status += f" Choose {EXPRESSION_MODEL} to read the operators."
+        self._set_status(status)
+
     def set_input_image(self, img):
         self.original_image = img
         self._show(self.image_label, "input", img, (700, 380))
@@ -286,7 +331,8 @@ class HNRSApp:
             return
 
         try:
-            out = cnn_backend.recognise(self.models[model_name], self.original_image)
+            out = cnn_backend.recognise(self.models[model_name], self.original_image,
+                                        cnn_backend.SEGMENTATIONS[self.seg_var.get()])
         except Exception as e:
             messagebox.showerror("Recognition failed", str(e))
             return
@@ -507,4 +553,4 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    main()

@@ -69,9 +69,13 @@ text, details = expr.read_image(image)            # reads + − × ÷ ( ) as wel
 text, details = expr.read_image(image, allowed=Recogniser.DIGITS)   # digits only
 ```
 
-- `read_image(image, allowed=None)` segments the photo (`segment_expression`
-  when the model has operator classes, `segment_digits` otherwise), cuts each
+- `read_image(image, allowed=None, method=None)` segments the photo, cuts each
   box from the original photo, preprocesses it to 28×28 and classifies it.
+  Numbers use `segment_number()`: John's repaired segmentation by default
+  (`src/segmentation_split.py` – touching digits cut where `cnn_best` reads
+  the pieces best; `cnn_best` chooses the cuts for every model, so all models
+  get the same crops), or `method="contours"` for the Task 2 selection.
+  Models with operator classes use `segment_expression`.
   It returns the text and one dict per symbol: `label`, `confidence`, `top3`,
   `box` (x, y, w, h) and `input` (the 28×28 image the model saw).
 - `classify(patches)` / `probabilities(patches, allowed)` work on ready-made
@@ -193,10 +197,10 @@ Never put a tuned model next to an untuned one in the same table.
 
 | Model (best settings) | MNIST test | Shifted test | Real single digits | Real numbers exact |
 |---|---|---|---|---|
-| MLP | 98.99 % | 96.89 % | 57.0 % | 27.3 % |
-| LeNet-5 | 99.29 % | 98.09 % | 83.9 % | 60.6 % |
-| ResNet | 99.57 % | 99.54 % | 83.9 % | 55.6 % |
-| **VGG-deep (`cnn_best`)** | **99.62 %** | 99.47 % | **86.6 %** | **63.6 %** |
+| MLP | 98.99 % | 96.89 % | 57.0 % | 29.3 % |
+| LeNet-5 | 99.29 % | 98.09 % | 83.9 % | 64.6 % |
+| ResNet | 99.57 % | 99.54 % | 83.9 % | 58.6 % |
+| **VGG-deep (`cnn_best`)** | **99.62 %** | 99.47 % | **86.6 %** | **67.7 %** |
 
 ---
 
@@ -334,7 +338,8 @@ How the expression metrics are computed:
 |---|---|---|
 | `load_model(model_name, path=None)` | *Pretrained* selected | loads the frozen model above (or a chosen `.keras` / `.joblib` file) as a `Recogniser`; refuses a file of the wrong kind |
 | `train_model(model_name, params, on_epoch, stop_event)` | *Train* pressed | neural options: trains through `trainer.py`, reports every epoch, honours *Stop*; SVM / Random Forest: one fit, reported as one step. Saves to `models/gui_runs/` |
-| `recognise(model, pil_image)` | *Recognise Number* pressed | returns the text, per-symbol confidences, boxes, 28×28 thumbnails and the binary image for the GUI tabs |
+| `recognise(model, pil_image, segmentation=None)` | *Recognise Number* pressed | returns the text, per-symbol confidences, boxes, 28×28 thumbnails and the binary image for the GUI tabs; `segmentation` is the *Segment* choice (`SEGMENTATIONS`: `repaired`, the default, or `contours`) |
+| `generate_from_folder(folder, text, n_digits, expression)` | *Generate* pressed | builds the input image from a folder of digit images (`src/number_from_folder.py`); returns the image and the number it shows |
 
 The SVM and Random Forest are wrapped by `ClassicalModel`, which gives them the
 one method `Recogniser` calls (`predict` on 28×28 patches). Every option

@@ -133,16 +133,18 @@ uses the same layout code and spacings with MNIST *test* digits instead.
 | 95 % confidence interval | Wilson score interval; shown wherever a set is small (the real photos) |
 | McNemar's exact test | paired comparison of two models on the same images: only the images one gets right and the other wrong count. p < 0.05 = a real difference |
 
-Segmentation (`contours`) and preprocessing (`otsu_mnist_box`) are the system's
-own and run once per image; every model reads the same crops, so differences
-between models are differences in recognition only.
+Segmentation and preprocessing are the system's own and run once per image:
+the repaired segmentation (`inference.segment_number()`: ruled lines removed,
+`contours`, touching digits cut where `cnn_best` reads the pieces best) and
+`otsu_mnist_box`. Every model reads the same crops, so differences between
+models are differences in recognition only.
 
 ---
 
 ## 7. Failure analysis
 
-`error_analysis.py` runs the final pipeline (contours → otsu_mnist_box →
-VGG-deep) and puts every failed number in exactly one category:
+`error_analysis.py` runs the final pipeline (repaired segmentation →
+otsu_mnist_box → VGG-deep) and puts every failed number in exactly one category:
 
 | Category | Rule | Stage at fault |
 |---|---|---|

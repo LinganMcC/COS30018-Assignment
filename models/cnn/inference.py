@@ -62,6 +62,59 @@ def _src_on_path() -> None:
         sys.path.insert(0, str(SRC))
 
 
+# How numbers are segmented (expressions always use segment_expression):
+#   "repaired"  John's second round (src/segmentation_split.py): ruled lines
+#               removed, contours, stacked pieces merged, boxes too wide for one
+#               digit cut where cnn_best reads the pieces most confidently.
+#               With cnn_best on 99 real numbers: 63.6 % -> 67.7 % read exactly,
+#               touching digits 8 % -> 20 %; no number contours read was lost.
+#   "contours"  the Task 2 selection, one box per connected region of ink.
+NUMBER_SEGMENTATION = "repaired"
+SEGMENTATION_SCORER = "cnn_best"   # the model that chooses the cuts, for every reader
+_scorer_model: Optional["Recogniser"] = None
+
+
+def _digit_scorer(reader: Optional["Recogniser"] = None):
+    """crops -> (n, 10) digit probabilities from cnn_best, used only to choose cuts.
+
+    The same model chooses the cuts whichever model then reads the number, so
+    every model is given the same crops (fair comparison, GUI = evaluation).
+    """
+    global _scorer_model
+    if reader is not None and reader.name == SEGMENTATION_SCORER and len(reader.labels) == 10:
+        model = reader
+    else:
+        if _scorer_model is None:
+            _scorer_model = Recogniser(SEGMENTATION_SCORER)
+        model = _scorer_model
+    _src_on_path()
+    from preprocessing import preprocess
+
+    def score(crops):
+        if len(crops) == 0:
+            return np.zeros((0, 10))
+        return model.probabilities(np.stack([preprocess(c, add_channel=True) for c in crops]))
+    return score
+
+
+def segment_number(image: np.ndarray, method: Optional[str] = None,
+                   reader: Optional["Recogniser"] = None):
+    """Photo of a number -> (crops cut from the photo, boxes (x, y, w, h)), left to right.
+
+    method: "repaired" (default, NUMBER_SEGMENTATION) or any method of
+    segmentation.METHODS, e.g. "contours".
+    """
+    _src_on_path()
+    method = method or NUMBER_SEGMENTATION
+    if method == "repaired":
+        from segmentation_split import segment_digits_repaired
+        crops, boxes = segment_digits_repaired(image, _digit_scorer(reader))
+        return list(crops), [tuple(int(v) for v in b) for b in boxes]
+    from segmentation import segment_digits
+    _, boxes = segment_digits(image, method=method)
+    return [image[y:y + h, x:x + w] for (x, y, w, h) in boxes], [tuple(int(v) for v in b) for b in boxes]
+
+
 def soften(patches: np.ndarray) -> np.ndarray:
     """3x3 Gaussian blur on (N, 28, 28, 1) patches.
 
@@ -176,16 +229,20 @@ class Recogniser:
                    method: Optional[str] = None) -> Tuple[str, List[Dict]]:
         """Segment a photo, classify every box left to right, return (text, details).
 
-        Uses John's selected segmentation (contours) and preprocessing
-        (otsu_mnist_box). Boxes are cropped from the original photo, not the
-        binary mask - that is what preprocess() expects (README section 7).
+        Numbers: segment_number() - John's repaired segmentation by default
+        (method="contours" for the Task 2 selection). Expressions: contours with
+        operators kept (segment_expression). Preprocessing: otsu_mnist_box.
+        Crops come from the photo, not the binary mask - that is what
+        preprocess() expects (README section 3).
         """
         _src_on_path()
-        from segmentation import SELECTED_METHOD, segment_digits, segment_expression
-        # segment_expression keeps operators that segment_digits drops
-        segment = segment_expression if self.reads_operators(allowed) else segment_digits
-        _, boxes = segment(image, method=method or SELECTED_METHOD)
-        crops = [image[y:y + h, x:x + w] for (x, y, w, h) in boxes]
+        if self.reads_operators(allowed):
+            from segmentation import SELECTED_METHOD, segment_expression
+            m = method if method and method != "repaired" else SELECTED_METHOD
+            _, boxes = segment_expression(image, method=m)
+            crops = [image[y:y + h, x:x + w] for (x, y, w, h) in boxes]
+        else:
+            crops, boxes = segment_number(image, method, reader=self)
         details = self.read_crops(crops, allowed)
         for d, box in zip(details, boxes):
             d["box"] = tuple(int(v) for v in box)
