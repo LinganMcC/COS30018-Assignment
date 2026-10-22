@@ -17,5 +17,7 @@
     "(",
     ")"
   ],
-  "dataset": "mnist+symbols"
+  "dataset": "mnist+symbols",
+  "input_blur": false,
+  "trained_on": "mnist+symbols+real (team handwriting, sheets 1-2)"
 }

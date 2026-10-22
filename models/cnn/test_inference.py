@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import pytest
 
-from inference import DEFAULT_LABELS, Recogniser, load_label_names
+from inference import DEFAULT_LABELS, Recogniser, load_label_names, soften
 
 EXT_LABELS = DEFAULT_LABELS + ["+", "-", "*", "/", "(", ")"]
 
@@ -82,3 +82,37 @@ def test_label_file_fallback(tmp_path):
     assert load_label_names(ckpt) == DEFAULT_LABELS
     ckpt.with_suffix(".labels.json").write_text('{"label_names": ["a", "b"]}')
     assert load_label_names(ckpt) == ["a", "b"]
+
+
+def test_soften_is_on_only_for_operator_models():
+    assert not Recogniser("fake", model=FakeModel(np.ones(10) / 10)).soften
+    ext = Recogniser("fake", model=FakeModel(np.ones(16) / 16), label_names=EXT_LABELS)
+    assert ext.soften
+    assert not Recogniser("fake", model=FakeModel(np.ones(16) / 16),
+                          label_names=EXT_LABELS, soften=False).soften
+
+
+def test_soften_blurs_hard_edges_and_keeps_shape():
+    patch = np.zeros((1, 28, 28, 1), "float32")
+    patch[0, 4:24, 13:15, 0] = 1.0                 # a crisp vertical stroke
+    out = soften(patch)
+    assert out.shape == patch.shape
+    assert 0 < out[0, 14, 12, 0] < 1               # edge pixel now partly lit
+
+
+def test_input_blur_flag_from_label_file(tmp_path):
+    from inference import load_input_blur
+    ckpt = tmp_path / "m.keras"
+    assert load_input_blur(ckpt) is None
+    ckpt.with_suffix(".labels.json").write_text('{"label_names": ["0"], "input_blur": false}')
+    assert load_input_blur(ckpt) is False
+
+
+def test_frozen_label_files_name_a_registered_dataset():
+    """evaluate_classes.py loads the test set named in each frozen model's label file."""
+    import json
+    from datasets import available_datasets
+    from inference import CHECKPOINTS
+    for label_file in CHECKPOINTS.glob("*.labels.json"):
+        meta = json.loads(label_file.read_text())
+        assert meta.get("dataset", "mnist") in available_datasets(), label_file.name

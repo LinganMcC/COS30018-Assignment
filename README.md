@@ -1,75 +1,57 @@
-# COS30018 – Handwritten Number Recognition System (HNRS)
+# Handwritten Number Recognition System (HNRS)
 
-Option B group project. The system reads a photo of a handwritten number
-(for example `94026`) and outputs the number.
+COS30018 Intelligent Systems – Option B group project.
 
-**Team**
+The system reads a photo of a handwritten **number** (for example `94026`) and
+returns the number. As the research extension, it also reads handwritten
+**arithmetic expressions** with `+ − × ÷ ( )` (for example `(6×(14−(2+4)))÷4`).
 
-- **John** – Data & Vision: preprocessing (Task 1), segmentation (Task 2), test images
-- **Thien** – Deep Models: CNN models, augmentation, hyperparameter tuning (Task 3)
-- **Liam** – Baselines & Evaluation: SVM / MLP baselines, evaluation (Task 3 + Task 4)
-- **Russell** – Systems & Extension: GUI, pipeline wiring, arithmetic extension
+![The GUI reading a handwritten expression](docs/images/gui_expression.png)
 
----
+*The GUI reading an expression written by someone whose handwriting the model
+never saw during training. Every symbol is boxed, classified and given a
+confidence.*
 
-## 1. How the system works
+**Contents**
 
-```
-photo ─► preprocessing ─► segmentation ─► digit recognition ─► number
-         (John, Task 1)   (John, Task 2)   (Thien + Liam,        "94026"
-                                            Task 3)
-```
-
-1. **Preprocessing** cleans each digit image and turns it into the 28×28
-   format the models were trained on (`src/preprocessing.py`).
-2. **Segmentation** cuts a number image into one box per digit, left to
-   right (`src/segmentation.py`).
-3. **Recognition** classifies each 28×28 digit with a trained model
-   (`models/checkpoints/*.keras`).
-4. The digits are joined back into the number.
+1. [Quick start: from a fresh clone to a result](#1-quick-start-from-a-fresh-clone-to-a-result)
+2. [Using the GUI](#2-using-the-gui)
+3. [How the pipeline works](#3-how-the-pipeline-works)
+4. [Results at a glance](#4-results-at-a-glance)
+5. [Reproducing every result](#5-reproducing-every-result)
+6. [Repository map and detailed guides](#6-repository-map-and-detailed-guides)
+7. [Data: what is in the repo and what is downloaded](#7-data-what-is-in-the-repo-and-what-is-downloaded)
+8. [Project status and known limitations](#8-project-status-and-known-limitations)
+9. [Troubleshooting](#9-troubleshooting)
+10. [Team and Git workflow](#10-team-and-git-workflow)
 
 ---
 
-## 2. Status (as of 12 Oct, Sprint 4 week 10)
+## 1. Quick start: from a fresh clone to a result
 
-**Done**
+Everything below is run from a terminal. On Windows use PowerShell; the
+commands are the same except where a Windows line is shown.
 
-- [x] Task 1 – 8 preprocessing configurations compared; selected: `otsu_mnist_box`
-- [x] Task 2 – 4 classical + 4 model-based (sliding-window) segmentation methods compared; selected: `contours`
-- [x] Real handwritten test photos in `data/custom_samples/` – 149 single digits
-      (14–15 per class) and 99 numbers of 2–5 digits from six sheets by four
-      writers (`data/custom_samples/sheets.csv`); load them with
-      `src/test_set.py`, described in `reports/custom_test_set.csv`
-- [x] Operators segmented for the extension – `segment_expression()`
-- [x] 4 recognition models trained on MNIST: LeNet-5, VGG-deep, ResNet, MLP
-- [x] Config-driven trainer with data augmentation (`models/cnn/trainer.py`)
-- [x] Tuning stage A (augmentation) and stage B (learning rate / dropout / batch size)
-- [x] Final digit CNN frozen: `models/checkpoints/cnn_best.keras` (deeper VGG, batch 64, 99.62 % test)
-- [x] Extension dataset: operator symbols from HASYv2 + Kaggle (`src/download_symbols.py`)
-- [x] First 16-class model (digits + `+ - * / ( )`): `models/checkpoints/ext_best.keras`
-- [x] Per-model tuning of LeNet / ResNet / MLP and the "best settings" comparison
-- [x] Per-class precision / recall / F1 and confusion matrices for `ext_best` and `cnn_best`
-- [x] All final models tested on the team's real handwriting (`models/experiments/eval/`)
-- [x] One loader for the frozen models (`models/cnn/inference.py`) for the GUI and the parser
+### 1.1 What you need
 
-**Still open**
+| Requirement | Notes |
+|---|---|
+| **Python 3.12** (3.10 and 3.11 also work) | TensorFlow 2.16 does **not** install on Python 3.13. Check with `python --version`. |
+| Git | to clone the repository |
+| About 3 GB of free disk space | mostly TensorFlow |
+| Internet access on first run | `pip install`, and MNIST (11 MB) downloads automatically the first time it is needed |
+| Tkinter (for the GUI) | included with Python on Windows and macOS; on Linux run `sudo apt install python3-tk` |
 
-- [ ] GUI still uses placeholder functions; `predict_digits` returns random digits – Russell
-- [ ] Team's own handwritten operator samples for real-world testing – Russell + team
-- [ ] Classical ML baseline (SVM / Random Forest on HOG) and the shared
-      evaluation harness: per-class precision / recall / F1 and confusion
-      matrices – Liam
+No GPU is needed. Every model in this repository runs on a normal laptop CPU.
 
-Run `python src/show_progress.py` for a live DONE/TODO list.
-
----
-
-## 3. Setup (do this once)
+### 1.2 Install (once, about 5–10 minutes)
 
 ```bash
-python -m venv venv
+git clone https://github.com/LinganMcC/COS30018-Assignment.git
+cd COS30018-Assignment
 
-# Windows
+python -m venv venv
+# Windows (PowerShell)
 venv\Scripts\activate
 # macOS / Linux
 source venv/bin/activate
@@ -78,346 +60,417 @@ pip install -r requirements.txt
 python src/verify_setup.py
 ```
 
-`verify_setup.py` should report every required package as installed.
-TensorFlow is only needed for training and for anything that uses the CNN.
+`verify_setup.py` must end with **"All required packages present. Environment is ready."**
 
----
+### 1.3 See it work (1 minute)
 
-## 4. First run after cloning
+The trained models are already in the repository (`models/checkpoints/`), so
+nothing needs to be trained before the system can be used.
 
-Datasets are not stored in git, so a fresh clone has to rebuild them.
-Run these in order from the repo root – each one needs the one before it.
-
-**Step 1 – Export MNIST digits as image files** (into `data/raw/`)
 ```bash
-python src/prepare_data.py
+# Read a photographed number with the digit model
+python models/cnn/inference.py data/custom_samples/numbers/896_t1.jpg
+#   cnn_best: '896'   followed by one line per digit with its confidence
+
+# Read a photographed expression with the digits + operators model
+python models/cnn/inference.py data/custom_samples/expressions/ready/e090_s3w1.jpg --model ext_best
+#   ext_best: '(6*(14-(2+4)))/4'
+
+# Open the graphical interface
+python gui.py
 ```
 
-**Step 2 – Generate multi-digit number images with labels** (into `data/generated/`)
-```bash
-python src/generate_number.py --count 30
-```
+### 1.4 Check that everything is installed correctly (2 minutes)
 
-**Step 3 – Train the small classifiers used by the model-based segmenters**
 ```bash
-python src/digit_classifier.py
-```
-
-**Step 4 – Run all tests**
-```bash
-python -m pytest tests/ -q
+python -m pytest tests -q              # preprocessing and segmentation
+python -m pytest evaluation -q         # evaluation metrics, baselines, failure analysis
 cd models/cnn
-python -m pytest -q
+python -m pytest -q                    # models, training, evaluation, GUI backend
 cd ../..
 ```
 
-You can now run any script in sections 5–7.
+Both should report only `passed` (and possibly `skipped`, see below), never
+`failed`. On a fresh clone about 24 tests in `tests/` are **skipped** because
+they need generated data. To create that data and run them too:
+
+```bash
+python src/prepare_data.py             # MNIST digits as PNG files in data/raw/        (~5 s)
+python src/generate_number.py --count 30   # multi-digit number images in data/generated/  (~1 s)
+python src/digit_classifier.py         # small classifiers used by some segmenters      (~5 s)
+python -m pytest tests -q              # now nothing is skipped
+```
 
 ---
 
-## 5. Task 1 & 2 – preprocessing and segmentation (John)
-
-All outputs go into `reports/`.
+## 2. Using the GUI
 
 ```bash
-# Whole pipeline on ONE image, printing every step (good for debugging)
-python experiments/demo_one.py data/custom_samples/numbers/896_t1.jpg
-
-# Task 1 – compare preprocessing configurations (slow: retrains a CNN each time)
-python experiments/compare_preprocessing.py
-
-# Task 2 – compare segmentation methods on generated numbers
-python experiments/demo_segmentation.py
-python experiments/plot_model_results.py
-python experiments/make_segmentation_figures.py
-
-# Both comparisons on REAL handwriting (data/custom_samples/)
-python experiments/evaluate_custom.py
-
-# Every technique and result in one summary (fast, no TensorFlow)
-python experiments/show_techniques.py
-
-# Task 2, second round - repairing touching and broken digits
-# (tuned on John's two sheets + generated numbers, scored on the other four sheets)
-python experiments/evaluate_split.py
-python experiments/evaluate_split.py --figure
-python -m pytest tests/test_page_cleanup.py -q      # ruled-line removal, deskew
-
-# Task 2 on arithmetic expressions - do the operators get their own boxes?
-python src/generate_number.py --expressions --count 40     # first, once
-python experiments/evaluate_operators.py
-
-# What is in the real handwritten test set (writes reports/custom_test_set.csv)
-python src/test_set.py
+python gui.py          # from the repository root
 ```
 
-The two report sections for these tasks are written up in
-`reports/report_task1_preprocessing.md` and
-`reports/report_task2_segmentation.md`.
+1. **Choose a model** in *Settings → Model*:
 
-**Adding your own handwriting:** put the label before the underscore in the filename.
+   | Option | What it reads | Model file |
+   |---|---|---|
+   | **CNN** | numbers (digits 0–9) | `models/checkpoints/cnn_best.keras` |
+   | **CNN + operators** | numbers and expressions with `+ − × ÷ ( )` | `models/checkpoints/ext_best.keras` |
+   | MLP | numbers – a simple neural network, for comparison | `models/checkpoints/mlp_best.keras` |
+   | SVM | numbers – HOG features + SVM, classical baseline | `models/checkpoints/hog_svm.joblib` |
+   | Random Forest | numbers – HOG features + Random Forest, classical baseline | `models/checkpoints/hog_rf.joblib` |
 
-```
-data/custom_samples/digits/3_01.jpg         one digit, label 3
-data/custom_samples/numbers/94026_01.jpg    a whole number, label 94026
-```
+   *CNN* is the system's model. The other three are the Task 3 comparison
+   models: reading the same photo with each shows the differences measured in
+   [section 4](#4-results-at-a-glance).
 
-Several numbers written on one sheet can be cut up automatically with
-`src/split_sheet.py` (see the instructions at the top of that file).
+2. **Choose where the model comes from:**
+   - **Pretrained** loads the frozen model in the table above (a few seconds the first time).
+   - **Train new** trains a fresh model on MNIST (or MNIST + operator symbols
+     for *CNN + operators*) with your own settings: architecture
+     (`lenet`, `vgg_deep`, `resnet`), augmentation (`none` … `strong`),
+     learning rate, batch size and epochs. Training runs in the background;
+     the *Training* tab shows the loss and accuracy curves live, and **Stop**
+     ends it after the current batch. Trained models are saved in
+     `models/gui_runs/` (not committed). Training *CNN + operators* needs the
+     operator symbol images (section 7); training *CNN* only needs MNIST.
+     *MLP* uses the same settings with the MLP architecture. *SVM* and
+     *Random Forest* have no epochs or learning rate: they are fitted once on
+     10,000 MNIST images with the settings tuned in `evaluation/baselines.py`
+     (SVM about 3 minutes, Random Forest under 1; Stop works only before the
+     fit starts).
+
+3. **Load an image:** *Input → Load image…* or drag a file onto the window.
+   Try any file in `data/custom_samples/numbers/` or
+   `data/custom_samples/expressions/ready/`.
+
+4. Press **Recognise Number**. The result appears under *Output* with a
+   confidence for every symbol. With *CNN + operators*, the expression is also
+   calculated (`expression_parser.py`), e.g. `(3+4)*5 = 35`. The *Preprocessed*
+   tab shows the binary image, and the *Segments* tab shows each box and the
+   exact 28×28 image the model saw.
+
+Every model option uses the project's own preprocessing and segmentation
+(section 3), so all five see exactly the same 28×28 inputs – the GUI reads the
+real test photos exactly as `evaluation/evaluate_all.py` scored them. The
+*Preprocessing* and *Segmentation* panels on the left are not used.
 
 ---
 
-## 6. Task 3 – training the models (Thien)
+## 3. How the pipeline works
 
-All model code lives in `models/cnn/`. Run these commands **from inside that folder**.
-
-**The four models**
-
-- `lenet` – LeNet-5, small and fast (`cnn_lenet.py`)
-- `vgg_deep` – 3-block VGG, the main candidate (`cnn_vgg_deep.py`)
-- `resnet` – small ResNet, most accurate but slowest (`cnn_resnet.py`)
-- `mlp` – fully connected baseline, no convolutions (`mlp_simple.py`)
-
-The `cnn_*.py` / `mlp_simple.py` scripts are the original Sprint 2 versions.
-For new training, use the shared trainer instead:
-
-```bash
-cd models/cnn
-
-# One training run
-python trainer.py --arch vgg_deep --aug light --run-id my_test
-
-# A tuning stage from the grid (configs/sprint3_tuning.json)
-python trainer.py --grid configs/sprint3_tuning.json --stage B
-
-# Quick 2-epoch check that everything works (nothing is logged)
-python trainer.py --grid configs/sprint3_tuning.json --stage B --quick
-
-# Results table + chart (add --freeze to copy the best run to checkpoints/cnn_best.keras)
-python summarise_tuning.py
+```
+ image file ──► 1. Segmentation ──► 2. Preprocessing ──► 3. Recognition ──► 4. Output
+ (photo, or a      split into one       each crop becomes      a CNN classifies     join the symbols:
+  generated        box per symbol,      a 28×28 image in        each 28×28 image     "896" or
+  number)          left to right        MNIST format                                 "(3+4)*5"
+                   src/segmentation.py  src/preprocessing.py    models/checkpoints/  models/cnn/inference.py
 ```
 
-`--freeze` picks the best run by validation accuracy across **all** digit runs, so
-only use it when you mean to replace the frozen model.
+The figure below is produced by `python experiments/demo_one.py` and shows
+every stage on one real photo:
 
-**Comparing the four models** – two comparisons, both worth showing in the report:
+![Pipeline on a real photo of 896](docs/images/pipeline_896.png)
 
-```bash
-# Controlled: every model with the same shared settings (the Sprint 2 runs)
-python compare_models.py
+**1. Segmentation** – `segment_digits()` / `segment_expression()` in `src/segmentation.py` (Task 2)
 
-# Each model at its best: tuned VGG + the per-model runs below
-python trainer.py --grid configs/sprint3_per_model.json
-python compare_models.py --set best
-```
+- The photo is converted to grey, median-filtered and binarised with Otsu's
+  threshold, so ink becomes white and paper black.
+- The outer contour of every ink region gives a bounding box (`contours`
+  method). Boxes too small to be a digit are dropped as noise.
+- For expressions (`segment_expression`), short and flat shapes are kept as
+  operators, and the bar and dots of a `÷` are merged into one box.
+- Boxes are sorted left to right. Each box is then cut from the **original
+  photo**, not from the binary image, because preprocessing expects ink on paper.
+- Four classical methods and six model-based ones were compared;
+  `contours` was selected because it was best on real photos (section 4).
 
-The first gives `compare_accuracy.png` / `compare_loss.png`; the second gives
-`compare_best_accuracy.png` / `compare_best_loss.png` and `compare_best_table.md`.
-Never mix the two (e.g. tuned VGG next to untuned LeNet) in one table.
+**2. Preprocessing** – `preprocess()` in `src/preprocessing.py` (Task 1)
 
-**Extension: digits + operator symbols (16 classes)**
+The selected configuration, `otsu_mnist_box`, turns each crop into exactly the
+format the models were trained on:
 
-```bash
-# From the repo root, once: download the symbols into data/symbols/ (not committed)
-python src/download_symbols.py --check
-python src/download_symbols.py --clean
+1. convert to greyscale;
+2. Otsu threshold, so strokes are white on a black background as in MNIST;
+3. crop to the ink, scale the longer side to 20 pixels **keeping the aspect
+   ratio**, and place it in a 28×28 frame centred on its centre of mass. This is
+   how MNIST itself was built; without it a thin `1` is stretched into a block;
+4. scale pixel values to 0–1.
 
-# From models/cnn/: train, then summarise extension runs separately from digit runs
-python trainer.py --dataset mnist+symbols --arch vgg_deep --aug light --batch-size 64 --run-id ext_v2
-python summarise_tuning.py --dataset mnist+symbols --freeze     # -> checkpoints/ext_best.keras
-```
+Eight configurations were compared (section 4).
 
-The Kaggle part is a manual download: extract `data.rar` into
-`data/downloads/xainano/` and the script finds it automatically.
+**3. Recognition** – `models/cnn/` (Task 3)
 
-**Sprint 4 – evaluating the frozen models** (from `models/cnn/`)
+- **Numbers:** `cnn_best`, a 3-block VGG-style CNN (0.59 M parameters), tuned
+  for learning rate, dropout, batch size and augmentation. It was compared with
+  two classical models (HOG features + SVM, HOG + Random Forest), an MLP,
+  LeNet-5 and a small ResNet (section 4).
+- **Expressions:** `ext_best`, the same architecture with 16 outputs
+  (`0–9 + − × ÷ ( )`). It was trained on MNIST + operator symbols (HASYv2 and
+  Kaggle), then fine-tuned on symbols cut from the team's own handwriting with
+  blur / sharpen / stroke-width augmentation.
+- Every frozen model has a `.labels.json` (class names) and a `.source.json`
+  (which training run it came from) next to it.
 
-```bash
-# Per-class precision / recall / F1 + confusion matrices (clean and shifted test)
-python evaluate_classes.py                    # ext_best and cnn_best
+**4. Output** – `Recogniser.read_image()` in `models/cnn/inference.py`
 
-# Every final model on the photos in data/custom_samples/
-python evaluate_real.py
-# ...and the stage A augmentation runs as well (needs checkpoints/tuning/, local only)
-python evaluate_real.py --runs s3_A1_aug_none s3_A2_aug_light s3_A3_aug_medium s3_A4_aug_strong
-```
-
-Results go to `models/experiments/eval/`: `<model>_report.md`, `<model>_per_class.csv`,
-`<model>_confusion.png`, `real_handwriting.md`, `real_vs_mnist.png`,
-`real_errors_cnn_best.png`.
-
-**Where results go**
-
-- `models/experiments/tuning_log.csv` – one row per tuning run
-- `models/experiments/tuning/` – curves and a summary for every run
-- `models/experiments/experiment_log.csv` – the Sprint 2 model runs
-- `models/experiments/tuning_table.md`, `extension_table.md` – digit and extension runs, kept separate
-- `models/checkpoints/cnn_best.keras`, `ext_best.keras` – the frozen models, each with a
-  `.labels.json` (class names) and `.source.json` (which run it came from)
-- Per-run tuning models in `models/checkpoints/tuning/` are not committed (too large)
-
-**Two accuracy numbers are reported for every run**
-
-- *Test accuracy* – the normal MNIST test set.
-- *Shifted-test accuracy* – the same test set, slightly rotated / shifted / zoomed.
-  This is closer to real handwriting coming out of segmentation, and it is where
-  augmentation shows its value.
-
----
-
-## 7. Using the pieces from your own code
-
-**Easiest: `Recogniser` (recommended for the GUI and the parser)**
+`read_image()` runs stages 1–3 and returns the text plus, for every symbol, its
+label, confidence, top-3 alternatives, box and 28×28 input. This one function
+is what the GUI and the evaluation scripts call.
 
 ```python
-import sys
-sys.path.insert(0, "models/cnn")            # run from the repo root
+import sys, cv2
+sys.path.insert(0, "models/cnn")          # run from the repository root
 from inference import Recogniser
 
-digits = Recogniser("cnn_best")             # digits 0-9
-text, details = digits.read_image(image)    # "94026", one dict per box
-
-expr = Recogniser("ext_best")               # digits + + - * / ( )
-text, details = expr.read_image(image)                              # "12+(3*4)"
-text, details = expr.read_image(image, allowed=Recogniser.DIGITS)   # plain numbers
-```
-
-`read_image` segments with John's selected method, preprocesses each crop the
-same way as training, and reads the class names from the `.labels.json`.
-Each `details` entry has `label`, `confidence`, `box` and `top3`, which is what
-the GUI needs for the per-digit confidence display and the segmented preview.
-Use `allowed=Recogniser.DIGITS` when `ext_best` reads a plain number:
-otherwise a slanted 1 can come back as `-` or `/` (seen on real photos).
-Quick check from the command line:
-`python models/cnn/inference.py data/custom_samples/numbers/896_t1.jpg --model ext_best`
-
-**By hand: preprocess + segment + recognise one image**
-
-```python
-import sys, json
-import cv2
-import tensorflow as tf
-sys.path.insert(0, "src")                  # run from the repo root
-from segmentation import segment_digits    # uses SELECTED_METHOD ("contours")
-from preprocessing import preprocess       # uses SELECTED_CONFIG ("otsu_mnist_box")
-
 image = cv2.imread("data/custom_samples/numbers/896_t1.jpg")
-model = tf.keras.models.load_model("models/checkpoints/cnn_lenet.keras")
-
-crops, boxes = segment_digits(image)       # boxes are ordered left to right
-digits = []
-for (x, y, w, h) in boxes:
-    crop = image[y:y + h, x:x + w]         # crop the ORIGINAL photo, not the binary crop
-    x_in = preprocess(crop, add_channel=True)        # shape (28, 28, 1)
-    probs = model.predict(x_in[None], verbose=0)[0]
-    digits.append(str(probs.argmax()))
-number = "".join(digits)
+text, details = Recogniser("cnn_best").read_image(image)    # '896'
+text, details = Recogniser("ext_best").read_image(image)    # also reads + − × ÷ ( )
 ```
 
-Why crop the original photo: the preprocessing expects the image as it was
-taken (dark ink on light paper). `experiments/evaluate_custom.py` (`read_number`)
-is a full working example.
-
-**Evaluate on the real handwritten set** — one loader, so every script agrees
-on which images exist and what their labels are:
-
-```python
-import sys
-sys.path.insert(0, "src")
-from test_set import load_digits, load_numbers
-
-for filename, image, label in load_numbers():   # image is BGR from cv2.imread
-    ...                                         # label is the true number, e.g. "94026"
-```
-
-**Recognise an arithmetic expression** (the extension) — same contract as
-`segment_digits`, but the boxes also cover `+ - * / ( )`:
-
-```python
-from segmentation import segment_expression
-
-crops, boxes = segment_expression(image)        # ordered left to right
-```
-
-Classify those crops with `ext_best.keras` and read the class names from
-`ext_best.labels.json`; classes 10–15 are the operators.
-
-**Models trained by the new trainer** come with a label file next to them,
-e.g. `cnn_best.keras` + `cnn_best.labels.json`. Read the class names from that
-file instead of assuming index = digit. This matters for the extension, where
-classes 10–15 are `+ - * / ( )`.
-
-```python
-labels = json.load(open("models/checkpoints/cnn_best.labels.json"))["label_names"]
-```
+**Input from a folder of digit images.** The specification also asks for a
+number image built automatically from single-digit images:
+`python src/generate_number.py` builds them from MNIST digits with ground-truth
+labels (`--expressions` builds arithmetic expressions instead). Wiring this
+into the GUI is still open (section 8).
 
 ---
 
-## 8. Hand-offs and known gaps
+## 4. Results at a glance
 
-- **GUI (Russell):** `gui.py` has the full layout, but `train_model` and
-  `predict_digits` are still placeholders. Swap in `segment_digits`,
-  `preprocess` and a loaded model as shown in section 7.
-- **Which model to load:** `cnn_best.keras` is the frozen digit model. `demo_one.py`
-  and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it
-  (on real photos cnn_best reads 90 % of single digits, cnn_lenet 84 %).
-- **Real handwriting vs MNIST:** every model scores ~99 % on MNIST but 73–90 % on the
-  70 real digit photos, and only 74 % of real numbers are split into the right
-  number of pieces. Whole-number failures are mostly segmentation; see
-  `models/experiments/eval/real_handwriting.md`. Do not pick or retrain a model
-  using these photos - they are the only real test set.
-- **Extension – segmentation:** `segmentation.py` drops any box shorter than 15 %
-  of the image height (`min_height_ratio=0.15`). That also drops a minus sign and
-  the dots of ÷, and ÷ splits into three pieces. Needs a fix before the
-  extension can work.
-  and `evaluate_custom.py` still load `cnn_lenet.keras` and should be pointed at it.
-- **Extension – segmentation:** done. Use `segment_expression(image)` from
-  `src/segmentation.py` instead of `segment_digits`; it returns one box per
-  symbol including `+ - * / ( )`, ordered left to right. 85 % of generated
-  expressions are split into exactly the right number of symbols, against 28 %
-  before (`reports/operator_segmentation.csv`). It stays off for plain numbers
-  because it costs 4 points of digit-count accuracy — see
-  `reports/operator_cost.csv` and section 6 of
-  `reports/report_task2_segmentation.md`.
-- **Extension – model (Russell's parser):** `ext_best.keras` outputs 16 classes. Read
-  the class names from `ext_best.labels.json`; classes 10–15 are `+ - * / ( )`,
-  where `*` covers both × and the asterisk, and `/` means ÷.
+All numbers are produced by scripts in this repository (section 5). "Real"
+means photos of the team's own handwriting in `data/custom_samples/`, which no
+model was trained on unless stated.
+
+**Task 1 – preprocessing** (8 configurations; `src/preprocessing.py`)
+
+| Configuration | MNIST (LeNet, 5 seeds) | 149 real digits | 99 real numbers, end to end |
+|---|---|---|---|
+| **otsu_mnist_box (selected)** | 96.0 % | **81.9 %** | **62 %** |
+| otsu_denoised_centered | 95.6 % | 79.9 % | 7 % |
+| otsu | 96.7 % | 76.5 % | 1 % |
+| grayscale_only | 96.7 % | 61.1 % | 1 % |
+
+On MNIST all configurations are within noise of each other; only real photos
+can tell them apart. Full table: `reports/report_task1_preprocessing.md`.
+
+**Task 2 – segmentation** (correct number of boxes; `src/segmentation.py`)
+
+| Method | 30 generated numbers | 99 real numbers | Real, read exactly |
+|---|---|---|---|
+| **contours (selected)** | 70 % | **75 %** | **62 %** |
+| connected_components | 70 % | 75 % | 62 % |
+| watershed | 50 % | 52 % | 34 % |
+| projection | 83 % | 17 % | 5 % |
+
+Projection wins on generated numbers but fails on real handwriting. Digits that
+touch are the main limitation. Full analysis: `reports/report_task2_segmentation.md`.
+
+A second round (`src/segmentation_split.py`) repairs touching digits by cutting
+wide boxes where the model reads the pieces most confidently: 64 % → 68 % of
+real numbers read exactly, touching numbers 8 % → 20 %. It is not yet used by
+the GUI (`reports/report_task2_segmentation.md`).
+
+**Task 3 – recognition techniques** (three families, each model at its best tuned settings)
+
+| Model | Family | MNIST test | MNIST shifted | Real single digits (149) | Real numbers, whole number (99) |
+|---|---|---|---|---|---|
+| HOG + SVM (RBF) | classical ML | 98.9 % | 78.0 % | 79.9 % | 53.5 % |
+| HOG + Random Forest | classical ML | 97.7 % | 77.2 % | 73.2 % | 48.5 % |
+| MLP (no convolutions) | simple neural | 99.0 % | 96.9 % | 57.0 % | 27.3 % |
+| LeNet-5 | CNN | 99.3 % | 98.1 % | 83.9 % | 60.6 % |
+| ResNet (small) | CNN | 99.6 % | 99.5 % | 83.9 % | 55.6 % |
+| **VGG-deep = `cnn_best`** | CNN | **99.6 %** | 99.5 % | **86.6 %** | **63.6 %** |
+
+On MNIST alone the models are within one point of each other; shifted and real
+input separate them. VGG-deep is significantly better (McNemar's test) than the
+classical models and the MLP on every test set, and never significantly worse
+than the other CNNs. Full comparison, significance tests and the justified
+selection: `evaluation/report_comparison_of_techniques.md`.
+
+**Task 4 – the whole system** (VGG-deep; per-digit and whole-number accuracy kept separate)
+
+| Test set | Digit count right | Per-digit accuracy | Whole-number accuracy |
+|---|---|---|---|
+| 600 generated numbers (MNIST test digits; wide / tight / touching) | 68.7 % | 81.8 % | 60.0 % |
+| 99 real photographed numbers | 74.7 % | 72.7 % | 63.6 % |
+| … of which digits apart / touching | 95.9 % / 12.0 % | – | 82.4 % / 8.0 % |
+
+About 70 % of failures happen in segmentation (mostly touching digits cut as
+one), not recognition: when a number is cut correctly, 90.5 % of real digits are
+read right. Critical analysis: `evaluation/report_system_performance.md`.
+
+**Extension – handwritten expressions** (408 expressions by 14 writers whose
+handwriting was **not** used for training)
+
+| | Before fine-tuning | **After (`ext_best`)** |
+|---|---|---|
+| Expression read exactly | 70.8 % | **87.5 %** |
+| Symbols read correctly | 94.2 % | **97.4 %** |
+| Expressions with brackets / nested brackets | 64.9 % / 63.5 % | 87.4 % / 75.0 % |
+| MNIST + symbols test set | 99.57 % | 99.38 % |
+
+89 % of expressions are cut into the right number of symbols, so segmentation
+is now the limit. Details and ablations: `models/experiments/eval/retraining_report.md`.
 
 ---
 
-## 9. Two MNIST loaders – which one to use
+## 5. Reproducing every result
 
-- `models/cnn/mnist_loader.py` gives arrays with a fixed train / validation / test
-  split. **Use it for training models.**
-- `src/prepare_data.py` writes individual digit PNG files to disk. It exists
-  because the spec requires building a number image from *a folder of digit
-  images*, so the files must physically exist.
+Run from the repository root unless the command starts with `cd`. Times are
+for a laptop CPU.
+
+| Result | Command | Time | Output |
+|---|---|---|---|
+| One image, every step shown | `python experiments/demo_one.py data/custom_samples/numbers/896_t1.jpg` | 10 s | terminal + `reports/demo_one.png` |
+| Task 1 + 2 summary of every technique (no TensorFlow) | `python experiments/show_techniques.py` | 5 s | terminal + `reports/*_visual.png` |
+| Task 1 + 2 on real photos | `python experiments/evaluate_custom.py` | 3–4 min | `reports/custom_*.csv` |
+| Task 2 on generated numbers (run the data steps in 1.4 first) | `python experiments/demo_segmentation.py` | 10 s | `reports/segmentation_comparison.csv` |
+| Task 2, second round: repairing touching and broken digits (tuned on John's two sheets + generated numbers, scored on the other four sheets) | `python experiments/evaluate_split.py` (`--figure` for before/after images) | 3–5 min | `reports/split_comparison.csv`, `reports/split_examples.png` |
+| Task 3 classical baselines (train once) | `python evaluation/baselines.py` | 30–40 min | `models/checkpoints/hog_*.joblib`, `evaluation/results/baseline_tuning.csv` |
+| Task 3 + 4 all six models on every test set | `python evaluation/generated_set.py` (once) → `python evaluation/evaluate_all.py` | 5–10 min | `evaluation/results/model_comparison.md`, charts |
+| Task 4 failure analysis | `python evaluation/error_analysis.py` | 1 min | `evaluation/results/failure_analysis.md`, `failure_gallery.png` |
+| Task 3 training curves of the neural models | `cd models/cnn` → `python compare_models.py --set best` | 5 s | `models/experiments/compare_best_*.png`, `compare_best_table.md` |
+| Task 3 per-class precision / recall / F1 | `cd models/cnn` → `python evaluate_classes.py` | 1–2 min | `models/experiments/eval/*_report.md`, `*_confusion.png` |
+| Task 4 every model on real photos | `cd models/cnn` → `python evaluate_real.py` | 2 min | `models/experiments/eval/real_handwriting.md` |
+| Extension on real expressions | `cd models/cnn` → `python evaluate_expressions.py` | 2 min | `models/experiments/eval/expressions_report.md` |
+| Extension before fine-tuning | `cd models/cnn` → `python evaluate_expressions.py --model ext_v2 --tag _ext_v2_test` | 2 min | `expressions_report_ext_v2_test.md` |
+
+`evaluate_classes.py` needs the operator symbol images (section 7) for the
+16-class model; run it with `--model cnn_best` if you have not downloaded them.
+
+Retraining any model is described in the lane guides (section 6). It is never
+needed to use or evaluate the system.
 
 ---
 
-## 10. Git workflow
+## 6. Repository map and detailed guides
 
-Never commit directly to `main`.
+```
+COS30018-Assignment/
+├── gui.py                      the graphical interface (start here)
+├── expression_parser.py        calculates a recognised expression (precedence, brackets, no eval())
+├── requirements.txt            exact package versions
+├── src/                        Task 1 preprocessing, Task 2 segmentation, data tools   → src/README.md
+├── experiments/                Task 1 + 2 comparison scripts                           → src/README.md
+├── reports/                    Task 1 + 2 results (CSV, figures) and report sections
+├── models/
+│   ├── cnn/                    Task 3 models, training, evaluation, GUI backend        → models/cnn/README.md
+│   ├── checkpoints/            the trained models used by the system (committed)
+│   └── experiments/            training logs, tuning tables, evaluation results
+├── evaluation/                 Task 3 baselines, Task 4 evaluation, failure analysis   → evaluation/README.md
+├── data/custom_samples/        the team's real handwriting (test photos, committed)
+│   ├── digits/  numbers/       149 single digits, 99 numbers (label = file name)
+│   └── expressions/ready/      823 photos of 120 expressions (4 sheets x 7 writers) + labels.csv
+├── tests/                      unit tests for src/
+└── docs/images/                figures used in this README
+```
+
+**Detailed guides – one per part of the system.** Each lists every script, what
+it does, its options and where its output goes.
+
+| Part | Owner | Guide |
+|---|---|---|
+| Preprocessing, segmentation, test data, number generator (Tasks 1–2) | John | [`src/README.md`](src/README.md) |
+| Recognition models, training, tuning, extension model, evaluation scripts, GUI backend (Task 3, extension model) | Thien | [`models/cnn/README.md`](models/cnn/README.md) |
+| Classical baselines, model comparison, system evaluation, failure analysis (Tasks 3–4) | Liam (written by Thien) | [`evaluation/README.md`](evaluation/README.md) |
+| GUI, expression parser, packaging (GUI, extension) | Russell | *to be added*; GUI use is in section 2 |
+
+---
+
+## 7. Data: what is in the repo and what is downloaded
+
+| Data | In the repo? | How to get it | Needed for |
+|---|---|---|---|
+| Trained models (`models/checkpoints/*.keras`, `*.joblib`) | **yes** | – | using and evaluating the system |
+| Generated test numbers (`data/generated_test/`) | no | `python evaluation/generated_set.py` (rebuilt identically from a seed) | `evaluate_all.py`, `error_analysis.py` |
+| Team's real handwriting (`data/custom_samples/`) | **yes** | – | all real-world results |
+| MNIST | no | downloads automatically on first use (11 MB, to `~/.keras/datasets/`) | training, `evaluate_classes.py`, `prepare_data.py` |
+| MNIST digits as PNG files (`data/raw/`) | no | `python src/prepare_data.py` | number generator, some tests |
+| Generated numbers / expressions (`data/generated*/`) | no | `python src/generate_number.py [--expressions]` | Task 2 comparisons on generated images |
+| Operator symbols (`data/symbols/`) | no | `python src/download_symbols.py` – see the note below | training or evaluating the 16-class model on symbols |
+
+**Operator symbols.** HASYv2 downloads automatically. The Kaggle part
+(*Handwritten math symbols*, `xainano/handwrittenmathsymbols`) needs a manual
+download because Kaggle requires a login: download `data.rar`, extract it into
+`data/downloads/xainano/`, then run `python src/download_symbols.py --clean`.
+`python src/download_symbols.py --check` reports what is present.
+
+**Adding your own handwriting.** Put the label first in the file name:
+`data/custom_samples/digits/3_01.jpg` (the digit 3) or
+`data/custom_samples/numbers/2026_01.jpg` (the number 2026). A sheet with
+many numbers can be cut automatically with `src/split_sheet.py`.
+
+---
+
+## 8. Project status and known limitations
+
+| Part | Status |
+|---|---|
+| Task 1 – preprocessing (8 techniques compared, one selected) | done |
+| Task 2 – segmentation (10 techniques compared, one selected; operators supported) | done |
+| Task 3 – four neural models compared, tuned and frozen | done |
+| Task 3 – classical baselines (HOG + SVM, HOG + Random Forest), six-model comparison with significance tests | done |
+| Task 4 – per-digit and whole-number evaluation on generated and real input, critical analysis | done |
+| GUI – load image, choose model, pretrained or train new, live curves, per-symbol confidence | done |
+| GUI – build a number from a folder of digit images | **open** – Russell (`src/generate_number.py` exists) |
+| GUI – MLP / SVM / Random Forest options, pretrained or train new | done |
+| Extension – recognise handwritten expressions | done (87.5 % exact on unseen writers) |
+| Extension – calculate the result with a parser (operator precedence, brackets, no `eval()`) | done (`expression_parser.py`; shown in the GUI) |
+
+**Known limitations (measured, with the evidence in the files named):**
+
+- **Touching digits.** When two digits touch, segmentation returns one box for
+  both; this causes most whole-number errors (`reports/report_task2_segmentation.md`).
+- **Real handwriting is harder than MNIST.** Every model scores about 99 % on
+  MNIST and 57–87 % on real single digits (`models/experiments/eval/real_handwriting.md`).
+- **Ruled paper.** Lines are kept as ink; single-digit accuracy on the lined
+  sheet is 30 % against 90 % on plain paper (`src/preprocessing.py`).
+- **Nested brackets.** Only 78 % of nested-bracket expressions are cut into
+  the right number of symbols (`models/experiments/eval/expressions_report.md`).
+
+---
+
+## 9. Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `No matching distribution found for tensorflow==2.16.1` | You are on Python 3.13. Install Python 3.12 and recreate the virtual environment. |
+| Windows: TensorFlow install fails with a long-path error | Enable long paths (`Settings → System → For developers → Enable long paths`) or clone into a short folder such as `C:\hnrs`. |
+| `ModuleNotFoundError: No module named 'inference'` (or `trainer`, `datasets`) | Scripts in `models/cnn/` are run from inside that folder: `cd models/cnn` first. |
+| `ModuleNotFoundError: No module named 'tkinter'` (Linux) | `sudo apt install python3-tk` |
+| Drag and drop does not work in the GUI | `tkinterdnd2` is missing; `pip install tkinterdnd2`. *Load image…* always works. |
+| MNIST download fails (no internet, proxy) | Copy `mnist.npz` into `~/.keras/datasets/` (Windows: `C:\Users\<you>\.keras\datasets\`). |
+| `labels.csv not found` from `evaluate_expressions.py` | The expression photos must be in `data/custom_samples/expressions/ready/`. |
+| GUI *Pretrained* loads an unexpected model | A file in `pretrained_models/` whose name starts with the model name takes priority over `models/checkpoints/`. Remove it. |
+| Many `oneDNN` / `cpu_feature_guard` lines when TensorFlow starts | Harmless information messages. Hide them with `set TF_CPP_MIN_LOG_LEVEL=2` (Windows) or `export TF_CPP_MIN_LOG_LEVEL=2`. |
+
+---
+
+## 10. Team and Git workflow
+
+| Member | Role | Owns |
+|---|---|---|
+| John | Data and vision | Task 1 preprocessing, Task 2 segmentation, real test data |
+| Thien | Deep models | Task 3 CNNs, augmentation, tuning, extension model |
+| Liam | Baselines and evaluation | Task 3 baselines, Task 4 evaluation |
+| Russell | Systems and extension | GUI, pipeline integration, expression parser, packaging |
+
+Never commit directly to `main`:
 
 ```bash
 git switch main
 git pull
-git switch -c feature/<your-name>-<what>    # e.g. feature/liam-eval-harness
-
-# ...work...
-
+git switch -c feature/<name>-<what>         # e.g. feature/liam-eval-harness
+# ...work, then:
 git status                                  # check nothing unexpected is listed
 git add <files>
-git commit -m "sprint N: what you did"
-git push -u origin feature/<your-name>-<what>
+git commit -m "what you did"
+git push -u origin feature/<name>-<what>
 ```
 
 Then open a pull request on GitHub and ask a teammate to review it.
 
-**Rules**
-
-- Every training run gets a row in `models/experiments/experiment_log.csv`
-  (the trainer does this automatically for `tuning_log.csv`).
-- Do not commit datasets, `venv/`, or per-run tuning models – `.gitignore` covers these.
-- The small CSVs and figures in `reports/` **are** committed on purpose: they are
-  the evidence of technique comparison the marking scheme asks for.
+- Do not commit datasets, `venv/`, `models/gui_runs/` or per-run tuning models;
+  `.gitignore` covers them.
+- The CSVs and figures in `reports/` and `models/experiments/` **are**
+  committed on purpose: they are the evidence for every comparison above.

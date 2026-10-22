@@ -1,13 +1,10 @@
 import os
 import queue
 import sys
-import random
 import threading
-import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -20,129 +17,23 @@ try:
 except ImportError:  
     HAS_DND = False
 
-# CNN backend (models/cnn/gui_backend.py)
+# Model backend for every option (models/cnn/gui_backend.py)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "cnn"))
 import gui_backend as cnn_backend
 
+# Expression parser (expression_parser.py, same folder as this file)
+from expression_parser import evaluate_expression
+
 # Constants
 IMAGE_TYPES = ("png", "jpg", "jpeg", "bmp")
-MODEL_OPTIONS = ["CNN", "CNN + operators", "MLP", "SVM", "Random Forest"]
-SEGMENT_METHODS = ["Vertical projection"]  # add more as you implement them
+MODEL_OPTIONS = list(cnn_backend.NEURAL_OPTIONS) + list(cnn_backend.CLASSICAL_OPTIONS)
+# ["CNN", "CNN + operators", "MLP", "SVM", "Random Forest"]
+EXPRESSION_MODEL = "CNN + operators"  # the option whose output is evaluated as arithmetic
 PRETRAINED_DIR = "pretrained_models"
 PRETRAINED_TYPES = (".keras", ".h5", ".pt", ".pth", ".pkl", ".joblib")
 BG = "gainsboro"
 HEADER_BG = "dim gray"
 
-# BACKEND PLACEHOLDERS  -  replace with the team's real implementations
-def otsu_threshold(arr):
-    """Otsu's method on a uint8 array. Returns a threshold in 0-255."""
-    hist = np.bincount(arr.ravel(), minlength=256).astype(float)
-    total = arr.size
-    sum_all = np.dot(np.arange(256), hist)
-    sum_b, w_b, best, thresh = 0.0, 0.0, 0.0, 0
-    for t in range(256):
-        w_b += hist[t]
-        if w_b == 0:
-            continue
-        w_f = total - w_b
-        if w_f == 0:
-            break
-        sum_b += t * hist[t]
-        m_b, m_f = sum_b / w_b, (sum_all - sum_b) / w_f
-        between = w_b * w_f * (m_b - m_f) ** 2
-        if between > best:
-            best, thresh = between, t
-    return thresh
-
-def preprocess(img, invert="Auto", blur=False, threshold="Otsu", thresh_value=128):
-    """Return a grayscale PIL image with a WHITE digit on a BLACK background
-    (the MNIST convention)."""
-    gray = img.convert("L")
-    if blur:
-        gray = gray.filter(ImageFilter.GaussianBlur(1))
-    arr = np.array(gray)
-
-    if invert == "Yes" or (invert == "Auto" and arr.mean() > 127):
-        arr = 255 - arr
-
-    if threshold == "Otsu":
-        arr = ((arr > otsu_threshold(arr)) * 255).astype(np.uint8)
-    elif threshold == "Fixed":
-        arr = ((arr > thresh_value) * 255).astype(np.uint8)
-    return Image.fromarray(arr)
-
-def segment(processed, method="Vertical projection", min_width=3):
-    """Split a preprocessed number image into single digits.
-
-    Returns (digit_images, boxes): 28x28 PIL images and (x0, y0, x1, y1) boxes.
-    """
-    arr = np.array(processed)
-    mask = arr > otsu_threshold(arr)
-    cols = mask.any(axis=0)
-
-    # Find runs of "ink" columns
-    runs, start = [], None
-    for x, has_ink in enumerate(cols):
-        if has_ink and start is None:
-            start = x
-        elif not has_ink and start is not None:
-            runs.append((start, x))
-            start = None
-    if start is not None:
-        runs.append((start, len(cols)))
-
-    digits, boxes = [], []
-    for x0, x1 in runs:
-        if x1 - x0 < min_width:
-            continue
-        rows = np.where(mask[:, x0:x1].any(axis=1))[0]
-        y0, y1 = rows[0], rows[-1] + 1
-        crop = processed.crop((x0, y0, x1, y1))
-        # MNIST style: fit into 20x20, centre on a 28x28 canvas
-        crop.thumbnail((20, 20))
-        canvas = Image.new("L", (28, 28), 0)
-        canvas.paste(crop, ((28 - crop.width) // 2, (28 - crop.height) // 2))
-        digits.append(canvas)
-        boxes.append((x0, y0, x1, y1))
-    return digits, boxes
-
-def train_model(model_name, params, on_epoch, stop_event):
-    """PLACEHOLDER. Train `model_name` on MNIST.
-
-    Call on_epoch(epoch, loss, accuracy) after every epoch and stop early if
-    stop_event.is_set(). Return the trained model object.
-    """
-    if cnn_backend.is_cnn(model_name):  # CNN: real training
-        return cnn_backend.train_cnn(model_name, params, on_epoch, stop_event)
-    loss, acc = 2.3, 0.1
-    for epoch in range(1, params["epochs"] + 1):
-        if stop_event.is_set():
-            break
-        time.sleep(0.4)  # <- real training goes here
-        loss *= 0.6
-        acc += (1 - acc) * 0.5
-        on_epoch(epoch, loss, acc)
-    return object()
-
-def predict_digits(model_name, model, digit_images):
-    """PLACEHOLDER. Return a list of (label, confidence) for each 28x28 image."""
-    return [(random.randint(0, 9), random.uniform(0.5, 1.0)) for _ in digit_images]
-
-def load_pretrained(model_name, path):
-    """PLACEHOLDER. Load a saved model for `model_name` from `path` and return
-    it (the same kind of object train_model() returns).
-
-    Typical implementations, depending on the model type:
-      CNN / MLP (Keras)  : tf.keras.models.load_model(path)
-      CNN / MLP (PyTorch): model = MyNet(); model.load_state_dict(torch.load(path)); model.eval()
-      SVM / Random Forest: joblib.load(path)
-    Raise an exception if the file is invalid; the GUI will show the error.
-    """
-    if not os.path.isfile(path):
-        raise FileNotFoundError(path)
-    if cnn_backend.is_cnn(model_name):  # CNN: load .keras
-        return cnn_backend.load_cnn(model_name, path)
-    return object()
 
 # GUI
 class HNRSApp:
@@ -183,14 +74,8 @@ class HNRSApp:
         self.epochs_var = tk.IntVar(value=10)
         self.batch_var = tk.IntVar(value=64)
         self.lr_var = tk.StringVar(value="0.001")
-        self.arch_var = tk.StringVar(value=cnn_backend.CNN_ARCHS[0])       # CNN only
-        self.aug_var = tk.StringVar(value="light")                          # CNN only
-        self.invert_var = tk.StringVar(value="Auto")
-        self.blur_var = tk.BooleanVar(value=False)
-        self.thresh_var = tk.StringVar(value="Otsu")
-        self.thresh_val_var = tk.IntVar(value=128)
-        self.seg_var = tk.StringVar(value=SEGMENT_METHODS[0])
-        self.minw_var = tk.IntVar(value=3)
+        self.arch_var = tk.StringVar(value=cnn_backend.CNN_ARCHS[0])
+        self.aug_var = tk.StringVar(value="light")
         self.status_var = tk.StringVar()
 
     # Layout
@@ -278,22 +163,6 @@ class HNRSApp:
                  anchor="w", background=BG).pack(fill="x", padx=6, pady=6)
 
         self.train_frame.pack(fill="x")  # default source: train new
-
-        # Preprocessing
-        box = self._section(self.settings, "Preprocessing")
-        self._row(box, "Invert:", lambda p: ttk.Combobox(p, textvariable=self.invert_var,
-                                                          values=["Auto", "Yes", "No"], state="readonly", width=10))
-        self._row(box, "Threshold:", lambda p: ttk.Combobox(p, textvariable=self.thresh_var,
-                                                             values=["Otsu", "Fixed", "None"], state="readonly", width=10))
-        self._row(box, "Fixed value:", lambda p: ttk.Scale(p, from_=0, to=255, variable=self.thresh_val_var))
-        tk.Checkbutton(box, text="Gaussian blur", variable=self.blur_var, background=BG,
-                       anchor="w").pack(fill="x", padx=4)
-
-        # Segmentation
-        box = self._section(self.settings, "Segmentation")
-        self._row(box, "Method:", lambda p: ttk.Combobox(p, textvariable=self.seg_var,
-                                                          values=SEGMENT_METHODS, state="readonly", width=14))
-        self._row(box, "Min width:", lambda p: ttk.Spinbox(p, from_=1, to=50, textvariable=self.minw_var, width=8))
 
         ttk.Button(self.settings, text="Recognise Number", command=self.recognise).pack(
             fill="x", padx=12, pady=10, ipady=4
@@ -403,7 +272,7 @@ class HNRSApp:
         if self.original_image is None:
             messagebox.showinfo("No image", "Load an image first.")
             return
-        
+
         model_name = self.model_var.get()
 
         if model_name not in self.models:
@@ -416,54 +285,42 @@ class HNRSApp:
                                     "or switch to Pretrained.")
             return
 
-        if cnn_backend.is_cnn(model_name):  # CNN uses its own pipeline
-            self._recognise_cnn(model_name)
-            return
-
-        # Task 1 - Preprocessing
-        self.processed_image = preprocess(
-            self.original_image, self.invert_var.get(), self.blur_var.get(),
-            self.thresh_var.get(), int(self.thresh_val_var.get()),
-        )
-        self._show(self.pre_label, "pre", self.processed_image, (700, 380))
-
-        # Task 2 - Segmentation
-        self.digit_images, self.boxes = segment(self.processed_image, self.seg_var.get(), self.minw_var.get())
-
-        if not self.digit_images:
-            self.result_var.set("?")
-            self.detail_var.set("No digits found. Try different preprocessing settings.")
-            return
-
-        # Task 3 - Classification
-        results = predict_digits(model_name, self.models[model_name], self.digit_images)
-        self._show_segments(results)
-
-        number = "".join(str(lbl) for lbl, _ in results)
-        self.result_var.set(number)
-        self.detail_var.set("Confidence per digit:\n" + "  ".join(f"{l}: {c:.0%}" for l, c in results))
-        self._set_status(f"Recognised {len(results)} digit(s) using {model_name}.")
-
-    def _recognise_cnn(self, model_name):
-        """CNN recognition; the panel's preprocessing/segmentation settings are not used."""
         try:
-            out = cnn_backend.recognise_cnn(self.models[model_name], self.original_image)
+            out = cnn_backend.recognise(self.models[model_name], self.original_image)
         except Exception as e:
             messagebox.showerror("Recognition failed", str(e))
             return
+
+        # Preprocessed image (project preprocessing)
         self.processed_image = out["binary"]
         self._show(self.pre_label, "pre", self.processed_image, (700, 380))
+
+        # Segmented symbols (project segmentation)
         self.digit_images, self.boxes = out["thumbs"], out["boxes"]
         if not out["results"]:
             self.result_var.set("?")
             self.detail_var.set("Nothing found in the image.")
             return
         self._show_segments(out["results"])
+
+        # Recognised text
         self.result_var.set(out["text"])
-        self.detail_var.set("Confidence per symbol:\n" +
-                            "  ".join(f"{l}: {c:.0%}" for l, c in out["results"]))
-        self._set_status(f"Recognised {len(out['results'])} symbol(s) using {model_name} "
-                         "(project preprocessing + segmentation; panel settings not used).")
+        detail = ("Confidence per symbol:\n" +
+                  "  ".join(f"{l}: {c:.0%}" for l, c in out["results"]))
+        status = f"Recognised {len(out['results'])} symbol(s) using {model_name}."
+
+        # "CNN + operators": evaluate the recognised text as an arithmetic expression
+        if model_name == EXPRESSION_MODEL:
+            value, err = evaluate_expression(out["text"])
+            if err is None:
+                detail = f"Result: {out['text']} = {value}\n" + detail
+                status = f"{out['text']} = {value}  |  " + status
+            else:
+                # usually a misread symbol: point the user at the Segments tab
+                detail = f"Cannot evaluate: {err}\n(check the Segments tab for misread symbols)\n" + detail
+                status = f"Could not evaluate '{out['text']}': {err}"
+        self.detail_var.set(detail)
+        self._set_status(status)
 
     def _show_segments(self, results):
         # Annotated copy of the processed image with boxes
@@ -503,13 +360,13 @@ class HNRSApp:
     def autodetect_pretrained(self):
         """Called automatically when Pretrained is selected or the model changes.
         Uses a model already loaded for this name, else looks in PRETRAINED_DIR
-        for a file whose name starts with the model name (e.g. cnn_mnist.keras,
-        random_forest.joblib)."""
+        for a file whose name starts with the model name (e.g. cnn_mnist.keras),
+        else falls back to the frozen model in models/checkpoints/."""
         name = self.model_var.get()
         if name in self.loaded_from:
             self.weights_var.set(f"Loaded: {os.path.basename(self.loaded_from[name])}")
             return
-        
+
         key = name.lower().replace(" ", "_")
 
         if os.path.isdir(PRETRAINED_DIR):
@@ -517,9 +374,9 @@ class HNRSApp:
                 if f.lower().startswith(key) and f.lower().endswith(PRETRAINED_TYPES):
                     self.load_pretrained_file(os.path.join(PRETRAINED_DIR, f))
                     return
-                
-        if cnn_backend.is_cnn(name) and cnn_backend.default_checkpoint(name).is_file():
-            # Nothing in pretrained_models/: use the frozen CNN
+
+        if cnn_backend.is_supported(name) and cnn_backend.default_checkpoint(name).is_file():
+            # Nothing in pretrained_models/: use the frozen model in models/checkpoints/
             self.weights_var.set("Loading... (first load takes a few seconds)")
             self.root.update_idletasks()
             self.load_pretrained_file(str(cnn_backend.default_checkpoint(name)))
@@ -530,11 +387,11 @@ class HNRSApp:
     def load_pretrained_file(self, path):
         name = self.model_var.get()
         try:
-            self.models[name] = load_pretrained(name, path)
+            self.models[name] = cnn_backend.load_model(name, path)
         except Exception as e:
             messagebox.showerror("Could not load model", f"{os.path.basename(path)}\n\n{e}")
             return
-        
+
         self.loaded_from[name] = path
         self.weights_var.set(f"Loaded: {os.path.basename(path)}")
         self._set_status(f"Pretrained {name} model loaded from {os.path.basename(path)}.")
@@ -546,8 +403,8 @@ class HNRSApp:
                 "epochs": int(self.epochs_var.get()),
                 "batch_size": int(self.batch_var.get()),
                 "learning_rate": float(self.lr_var.get()),
-                "arch": self.arch_var.get(),            # used by the CNN only
-                "augmentation": self.aug_var.get(),     # used by the CNN only
+                "arch": self.arch_var.get(),
+                "augmentation": self.aug_var.get(),
             }
         except (ValueError, tk.TclError):
             messagebox.showerror("Invalid parameters", "Check epochs, batch size and learning rate.")
@@ -557,18 +414,24 @@ class HNRSApp:
         self.history = {"loss": [], "acc": []}
         self._redraw_curves()
         self.stop_event.clear()
-        self.progress.config(maximum=params["epochs"], value=0)
+        self.progress.config(maximum=cnn_backend.training_steps(model_name, params), value=0)
         self.train_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.nb.select(self.tab_train)
-        self._set_status(f"Training {model_name}...")
+        if cnn_backend.is_classical(model_name):
+            self._set_status(f"Training {model_name} on {cnn_backend.CLASSICAL_TRAIN_IMAGES:,} "
+                             "MNIST images with its tuned settings (SVM about 3 minutes, Random Forest "
+                             "under 1; "
+                             "epochs, batch size and learning rate do not apply)...")
+        else:
+            self._set_status(f"Training {model_name}...")
 
         def worker():
             def on_epoch(epoch, loss, acc):
                 self.train_queue.put(("epoch", epoch, loss, acc))
 
             try:
-                model = train_model(model_name, params, on_epoch, self.stop_event)
+                model = cnn_backend.train_model(model_name, params, on_epoch, self.stop_event)
             except Exception as e:  # show the error instead of hanging
                 self.train_queue.put(("error", model_name, e))
                 return

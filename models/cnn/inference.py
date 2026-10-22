@@ -19,8 +19,12 @@ DEFAULT_LABELS = [str(d) for d in range(10)]   # models trained before label fil
 
 # Frozen checkpoints the team should load (see README section 6).
 FROZEN = {
-    "cnn_best": "digits 0-9 - deeper VGG, tuned (run s3_B5_bs_64)",
-    "ext_best": "digits + operators (16 classes) - deeper VGG (run ext_v2)",
+    "cnn_best": "digits 0-9 - deeper VGG, tuned (run s3_B5_bs_64)  <- the digit model the system uses",
+    "lenet_best": "digits 0-9 - LeNet-5, tuned (run pm_lenet_best), for the model comparison",
+    "resnet_best": "digits 0-9 - small ResNet, tuned (run pm_resnet_best), for the model comparison",
+    "mlp_best": "digits 0-9 - MLP, no convolutions (run pm_mlp_best), for the model comparison",
+    "ext_best": "digits + operators (16 classes) - deeper VGG, retrained on team handwriting (run ext_v3)",
+    "ext_v2": "previous ext_best, MNIST + symbol datasets only (needs the input blur)",
 }
 
 
@@ -45,9 +49,32 @@ def load_label_names(checkpoint: Path) -> List[str]:
     return list(DEFAULT_LABELS)
 
 
+def load_input_blur(checkpoint: Path) -> Optional[bool]:
+    """The 'input_blur' flag saved with a checkpoint, or None if it has none."""
+    label_file = checkpoint.with_suffix(".labels.json")
+    if label_file.exists():
+        return json.loads(label_file.read_text()).get("input_blur")
+    return None
+
+
 def _src_on_path() -> None:
     if str(SRC) not in sys.path:
         sys.path.insert(0, str(SRC))
+
+
+def soften(patches: np.ndarray) -> np.ndarray:
+    """3x3 Gaussian blur on (N, 28, 28, 1) patches.
+
+    Photo crops come out of preprocess() with hard binary edges; the training
+    images (MNIST, and especially the low-res symbol set) have soft edges.
+    ext_best learned "soft = bracket, hard = 1": on the team's expressions it
+    read 4.5 % of brackets correctly as-is and 99 % after this blur, while the
+    MNIST+symbols test set only moves 99.57 -> 99.41 %. Digit-only models do
+    not need it (cnn_best on real digits: 90.0 % without, 88.6 % with).
+    """
+    import cv2
+    out = np.stack([cv2.GaussianBlur(p[..., 0].astype("float32"), (3, 3), 0) for p in patches])
+    return out[..., np.newaxis]
 
 
 class Recogniser:
@@ -56,17 +83,22 @@ class Recogniser:
     DIGITS: Tuple[str, ...] = tuple(DEFAULT_LABELS)
 
     def __init__(self, checkpoint: str | Path = "cnn_best", model=None,
-                 label_names: Optional[Sequence[str]] = None):
+                 label_names: Optional[Sequence[str]] = None, soften: Optional[bool] = None):
         """Load from models/checkpoints/<checkpoint>.keras.
 
         `model` and `label_names` can be injected instead (used by the tests,
         so they run without a trained checkpoint).
+        `soften`: blur photo crops slightly (see soften()). Default: the
+        checkpoint's 'input_blur' flag if it has one (ext_v3 and later: off),
+        otherwise on only for models with operator classes (ext_best).
         """
         if model is None:
             import tensorflow as tf
             path = resolve_checkpoint(checkpoint)
             model = tf.keras.models.load_model(str(path))
             label_names = label_names or load_label_names(path)
+            if soften is None:
+                soften = load_input_blur(path)   # retrained models say they need none
         self.name = Path(str(checkpoint)).stem
         self.model = model
         self.labels: List[str] = list(label_names or DEFAULT_LABELS)
@@ -74,6 +106,7 @@ class Recogniser:
         if n_out != len(self.labels):
             raise ValueError(f"{self.name}: model has {n_out} outputs but "
                              f"{len(self.labels)} label names")
+        self.soften = self.reads_operators() if soften is None else soften
 
     #  classification 
     def _mask(self, allowed: Optional[Iterable[str]]) -> Optional[np.ndarray]:
@@ -110,7 +143,7 @@ class Recogniser:
         probs = self.probabilities(patches, allowed)
         out = []
         for p in probs:
-            order = np.argsort(p)[::-1][:3]
+            order = np.argsort(-p, kind="stable")[:3]   # ties -> lower class, like argmax
             out.append({
                 "label": self.labels[order[0]],
                 "confidence": float(p[order[0]]),
@@ -127,6 +160,8 @@ class Recogniser:
         if len(crops) == 0:
             return []
         patches = np.stack([preprocess(c, add_channel=True) for c in crops])
+        if self.soften:
+            patches = soften(patches)
         details = self.classify(patches, allowed)
         for d, patch in zip(details, patches):
             d["input"] = patch[..., 0]      # the 28x28 image the model saw (0-1)
