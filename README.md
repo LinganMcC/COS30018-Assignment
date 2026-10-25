@@ -400,7 +400,13 @@ it does, its options and where its output goes.
 | Preprocessing, segmentation, test data, number generator (Tasks 1–2) | John | [`src/README.md`](src/README.md) |
 | Recognition models, training, tuning, extension model, evaluation scripts, GUI backend (Task 3, extension model) | Thien | [`models/cnn/README.md`](models/cnn/README.md) |
 | Classical baselines, model comparison, system evaluation, failure analysis (Tasks 3–4) | Liam (written by Thien) | [`evaluation/README.md`](evaluation/README.md) |
-| GUI, expression parser, packaging (GUI, extension) | Russell | *to be added*; GUI use is in section 2 |
+| GUI, expression parser, packaging (GUI, extension) | Russell | no separate guide: GUI use is in [section 2](#2-using-the-gui); the parser is documented in `expression_parser.py` |
+
+**Other Markdown files.** Besides these guides, the `.md` files under
+`models/experiments/`, `evaluation/` and `reports/` are result tables written
+by the scripts (re-run the script to update one; do not edit it by hand) and
+early drafts of report sections, kept as the evidence behind the final report.
+Start from the guides above; each links to the result files it produces.
 
 ---
 
