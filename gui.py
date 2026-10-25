@@ -354,6 +354,11 @@ class HNRSApp:
         detail = ("Confidence per symbol:\n" +
                   "  ".join(f"{l}: {c:.0%}" for l, c in out["results"]))
         status = f"Recognised {len(out['results'])} symbol(s) using {model_name}."
+        flagged = cnn_backend.uncertain(out["results"])
+        if flagged:
+            detail += ("\nCheck (below {:.0%} confidence): ".format(cnn_backend.LOW_CONFIDENCE) +
+                       ", ".join(f"symbol {i + 1} '{out['results'][i][0]}'" for i in flagged))
+            status += f" {len(flagged)} symbol(s) below {cnn_backend.LOW_CONFIDENCE:.0%} confidence - check them."
 
         # "CNN + operators": evaluate the recognised text as an arithmetic expression
         if model_name == EXPRESSION_MODEL:
@@ -372,8 +377,11 @@ class HNRSApp:
         # Annotated copy of the processed image with boxes
         annotated = self.processed_image.convert("RGB")
         draw = ImageDraw.Draw(annotated)
-        for (x0, y0, x1, y1), (lbl, _) in zip(self.boxes, results):
-            draw.rectangle((x0, y0, x1, y1), outline="red", width=2)
+        flagged = set(cnn_backend.uncertain(results))
+        for i, ((x0, y0, x1, y1), (lbl, _)) in enumerate(zip(self.boxes, results)):
+            # low-confidence symbols get a thicker orange box: check these first
+            draw.rectangle((x0, y0, x1, y1), outline="orange" if i in flagged else "red",
+                           width=4 if i in flagged else 2)
         self._show(self.seg_label, "seg", annotated, (700, 300))
 
         # One thumbnail + Prediction per digit
@@ -386,7 +394,9 @@ class HNRSApp:
             photo = ImageTk.PhotoImage(digit.resize((56, 56), Image.NEAREST))
             self._photos[f"thumb{i}"] = photo
             tk.Label(cell, image=photo).pack()
-            tk.Label(cell, text=f"{lbl} ({conf:.0%})").pack()
+            low = i in flagged
+            tk.Label(cell, text=f"{lbl}{'?' if low else ''} ({conf:.0%})",
+                     fg="red" if low else "black").pack()
 
     # Pretrained models
     def _on_source_change(self):

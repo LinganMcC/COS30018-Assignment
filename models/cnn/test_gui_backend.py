@@ -176,3 +176,10 @@ def test_generate_from_folder_gives_an_image_the_gui_can_show():
     assert text == "4096" and isinstance(img, Image.Image) and img.width > img.height
     img, text = gb.generate_from_folder(text="", n_digits=3, expression=True, seed=1)
     assert any(c in text for c in "+-*/")
+
+
+def test_low_confidence_symbols_are_flagged():
+    results = [("8", 0.99), ("9", 0.62), ("6", 0.95), ("1", 0.899)]
+    assert gb.uncertain(results) == [1, 3]
+    assert gb.uncertain(results, threshold=0.5) == []
+    assert gb.LOW_CONFIDENCE == 0.9

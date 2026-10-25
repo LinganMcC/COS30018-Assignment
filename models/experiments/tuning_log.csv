@@ -17,3 +17,6 @@ timestamp,run_id,architecture,learning_rate,batch_size,epochs,dropout,val_accura
 2026-10-19T20:41:10,ext_v3,vgg_deep,0.0003,64,8,0.5,0.9932,0.9938,1752.61,fine-tune of ext_best; real x6; style=on; val_real=1.0000; dataset=mnist+symbols+real
 2026-10-19T21:08:20,ext_v3_noreal,vgg_deep,0.0003,64,8,0.5,0.9932,0.9936,1611.49,fine-tune of ext_best; real x0; style=on; val_real=0.9977; dataset=mnist+symbols+real
 2026-10-19T21:37:01,ext_v3_nostyle,vgg_deep,0.0003,64,8,0.5,0.9944,0.9948,1700.82,fine-tune of ext_best; real x6; style=off; val_real=0.9977; dataset=mnist+symbols+real
+2026-10-23T21:48:59,seed_B5_s43,vgg_deep,0.001,64,18,0.5,0.9962,0.9958,2105.04,dataset=mnist; aug=light; robust_acc=0.9929
+2026-10-23T22:21:56,seed_B3_s43,vgg_deep,0.001,128,18,0.3,0.9957,0.9966,1965.77,dataset=mnist; aug=light; robust_acc=0.9947
+2026-10-23T22:54:06,seed_A2_s43,vgg_deep,0.001,128,18,0.5,0.9947,0.9959,1917.05,dataset=mnist; aug=light; robust_acc=0.9933
