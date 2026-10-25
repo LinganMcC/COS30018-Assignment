@@ -48,6 +48,17 @@ SEGMENTATIONS: Dict[str, str] = {
 }
 DEFAULT_DIGIT_FOLDER = REPO_ROOT / "data" / "custom_samples" / "digits"
 
+# Symbols read with less confidence than this are flagged in the GUI for the user
+# to check. On the real test numbers cut into the right number of pieces, 0.9
+# flags 29 of 232 digits and catches 71 % of the wrong ones
+# (evaluation/results/failure_analysis.md, "Could the system warn the user?").
+LOW_CONFIDENCE = 0.9
+
+
+def uncertain(results, threshold: float = LOW_CONFIDENCE) -> list:
+    """Positions of the (label, confidence) pairs below `threshold`."""
+    return [i for i, (_, conf) in enumerate(results) if conf < threshold]
+
 
 def is_cnn(model_name: str) -> bool:
     return model_name in CNN_OPTIONS

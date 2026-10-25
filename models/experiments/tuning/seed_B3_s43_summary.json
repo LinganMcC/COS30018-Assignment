@@ -1,0 +1,24 @@
+{
+  "config": {
+    "run_id": "seed_B3_s43",
+    "arch": "vgg_deep",
+    "dataset": "mnist",
+    "augmentation": "light",
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "dropout": 0.3,
+    "max_epochs": 30,
+    "patience": 5,
+    "seed": 43,
+    "notes": "",
+    "quick": false,
+    "output_root": null
+  },
+  "val_accuracy": 0.9956666827201843,
+  "test_accuracy": 0.9965999722480774,
+  "robust_test_accuracy": 0.994700014591217,
+  "epochs_run": 18,
+  "training_time_s": 1965.7652831077576,
+  "num_params": 586282,
+  "checkpoint": "/tmp/claude-0/-home-claude/77c38288-9a5c-5e8c-9d79-07c352bda3d7/scratchpad/gh/models/checkpoints/tuning/seed_B3_s43.keras"
+}
