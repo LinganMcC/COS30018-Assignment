@@ -54,7 +54,7 @@ HIGHLIGHT, NEUTRAL = "#2a78d6", "#b8b7b1"
 BLUES = ["#fcfcfb", "#cde2fb", "#86b6ef", "#2a78d6", "#184f95", "#0d366b"]
 
 
-# ---------------------------------------------------------------- metrics
+# metrics
 
 def levenshtein(a: str, b: str) -> int:
     prev = list(range(len(b) + 1))
@@ -98,7 +98,7 @@ def number_metrics(rows: List[Dict]) -> Dict:
     }
 
 
-# ---------------------------------------------------------------- test sets
+#  test sets
 
 def mnist_block(models, results: Dict, per_class: List[Dict], quick: bool):
     from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
@@ -173,7 +173,7 @@ def numbers_block(models, items, tag: str, results: Dict, by_image: List[Dict], 
                              if r["set"] == tag and r["model"] == m.name]) for m in models}
 
 
-# ---------------------------------------------------------------- outputs
+#  outputs
 
 def pct(x: float) -> str:
     return f"{100 * x:.1f} %"
@@ -362,7 +362,7 @@ def confusion_chart(models, confusions):
     plt.close(fig)
 
 
-# ---------------------------------------------------------------- main
+# main
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Score every model on every test set.")
