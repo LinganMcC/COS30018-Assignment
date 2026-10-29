@@ -237,4 +237,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # Windows consoles default to cp1252, which cannot print − × ÷ in the results
+    sys.stdout.reconfigure(encoding="utf-8")
     main()
