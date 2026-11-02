@@ -36,7 +36,7 @@ commands are the same except where a Windows line is shown.
 
 | Requirement | Notes |
 |---|---|
-| **Python 3.12** (3.10 and 3.11 also work) | TensorFlow 2.16 does **not** install on Python 3.13. Check with `python --version`. |
+| **Python 3.11** (recommended; 3.10 and 3.12 also work) | 3.11 is the version the team uses on Windows. TensorFlow 2.16 does **not** install on Python 3.13. Check with `python --version`. |
 | Git | to clone the repository |
 | About 3 GB of free disk space | mostly TensorFlow |
 | Internet access on first run | `pip install`, and MNIST (11 MB) downloads automatically the first time it is needed |
@@ -50,7 +50,7 @@ No GPU is needed. Every model in this repository runs on a normal laptop CPU.
 git clone https://github.com/LinganMcC/COS30018-Assignment.git
 cd COS30018-Assignment
 
-python -m venv venv
+python -m venv venv          # Windows with several Pythons: py -3.11 -m venv venv
 # Windows (PowerShell)
 venv\Scripts\activate
 # macOS / Linux
@@ -475,7 +475,8 @@ many numbers can be cut automatically with `src/split_sheet.py`.
 
 | Problem | Fix |
 |---|---|
-| `No matching distribution found for tensorflow==2.16.1` | You are on Python 3.13. Install Python 3.12 and recreate the virtual environment. |
+| `No matching distribution found for tensorflow==2.16.1` | You are on Python 3.13. Install Python 3.11 and recreate the virtual environment (`py -3.11 -m venv venv` on Windows). |
+| Windows: TensorFlow installs but `import tensorflow` fails on Python 3.12 | Recreate the virtual environment with Python 3.11: `py -3.11 -m venv venv`, then `pip install -r requirements.txt` again. |
 | Windows: TensorFlow install fails with a long-path error | Enable long paths (`Settings → System → For developers → Enable long paths`) or clone into a short folder such as `C:\hnrs`. |
 | `ModuleNotFoundError: No module named 'inference'` (or `trainer`, `datasets`) | Scripts in `models/cnn/` are run from inside that folder: `cd models/cnn` first. |
 | `ModuleNotFoundError: No module named 'tkinter'` (Linux) | `sudo apt install python3-tk` |
